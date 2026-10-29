@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { api } from "../../api.js";
 import { BRAND, FONT, MUTED } from "../../brand.js";
 import { Card, ErrorBanner, Spinner } from "../../components/ui.jsx";
+import { CapitalBar } from "../../components/progress.jsx";
+import { vehicleCapitalParts } from "./AdminVehiclesView.jsx";
 
 function Tile({ label, value, sub, onClick, highlight }) {
   return (
@@ -34,14 +36,18 @@ export function AdminOverview({ onNavigate }) {
       api.listPartners(),
       api.listInvestors(),
       api.listKyc().catch(() => null), // needs restricted access
-    ]).then(([u, p, i, k]) => setData({ users: u.users, partners: p.partners, investors: i.investors, kyc: k?.files ?? null }))
+      api.listVehicles(),
+      api.listCommitments({ status: "live" }),
+    ]).then(([u, p, i, k, v, c]) => setData({ users: u.users, partners: p.partners, investors: i.investors, kyc: k?.files ?? null, vehicles: v.vehicles, commitments: c.commitments }))
       .catch((e) => setError(e.message));
   }, []);
 
   if (error) return <ErrorBanner text={error} />;
   if (!data) return <Spinner />;
 
-  const { users, partners, investors, kyc } = data;
+  const { users, partners, investors, kyc, vehicles, commitments } = data;
+  const waitingEligibility = commitments.filter((c) => c.stage === "Intent" && c.status === "Active").length;
+  const fundsDue = commitments.filter((c) => c.stage === "Funds due" && c.status === "Active").length;
   const toReview = investors.filter((i) => i.registration_status === "Submitted").length;
   const approved = investors.filter((i) => i.registration_status === "Approved");
   const kycCleared = approved.filter((i) => i.kyc_status === "Cleared").length;
@@ -51,7 +57,17 @@ export function AdminOverview({ onNavigate }) {
 
   return (
     <div>
+      <Group title="Capital">
+        {vehicles.map((v) => (
+          <Card key={v.id} onClick={() => onNavigate("vehicles")} style={{ padding: 18, cursor: "pointer", gridColumn: "span 2" }}>
+            <div style={{ fontFamily: FONT, fontSize: 12, color: MUTED, fontWeight: 600, marginBottom: 10 }}>{v.name}</div>
+            <CapitalBar target={v.target_raise} parts={vehicleCapitalParts(v)} />
+          </Card>
+        ))}
+      </Group>
       <Group title="Needs attention">
+        <Tile label="Commitments waiting on eligibility" value={waitingEligibility} sub="KYC or minimum ticket" onClick={() => onNavigate("commitments")} highlight={waitingEligibility > 0} />
+        <Tile label="Payments due" value={fundsDue} sub="Payment instructions issued" onClick={() => onNavigate("commitments")} />
         <Tile label="Investor registrations to review" value={toReview} sub="From venture partners" onClick={() => onNavigate("investors")} highlight={toReview > 0} />
         <Tile label="KYC waiting for review" value={kycWaiting ?? "–"} sub={kyc ? "Submitted by investors" : "Needs restricted access"} onClick={() => onNavigate("kyc")} highlight={kycWaiting > 0} />
         <Tile label="KYC expired" value={kycExpired ?? "–"} sub={kyc ? "Open a refresh" : "Needs restricted access"} onClick={() => onNavigate("kyc")} highlight={kycExpired > 0} />
@@ -60,7 +76,7 @@ export function AdminOverview({ onNavigate }) {
       <Group title="People">
         <Tile label="Approved investors" value={approved.length} sub={`${kycCleared} with KYC cleared`} onClick={() => onNavigate("investors")} />
         <Tile label="Onboarded venture partners" value={partners.filter((p) => p.onboarding_stage === "Onboarded").length} sub={`${partners.length} in total`} onClick={() => onNavigate("partners")} />
-        <Tile label="Active logins" value={users.filter((u) => u.status === "active").length} sub={`${users.filter((u) => u.status === "invited").length} invites not yet accepted`} onClick={() => onNavigate("users")} />
+        <Tile label="Active logins" value={users.filter((u) => u.status === "active").length} sub={`${users.filter((u) => u.status === "invited").length} invites not yet accepted`} onClick={() => onNavigate("settings")} />
       </Group>
     </div>
   );

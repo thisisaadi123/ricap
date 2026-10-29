@@ -22,9 +22,22 @@ export const RISK_RATINGS = ["Low", "Medium", "High"];
 export const CLASSIFICATIONS = ["Retail client", "Professional client", "Market counterparty"];
 export const DOC_TYPES = [
   "KYC document", "Venture Partner Agreement", "NDA", "Term sheet", "Subscription Agreement (SSA)",
-  "Shareholders' Agreement (SHA)", "Engagement letter", "Board resolution", "Share certificate",
-  "Payment instruction", "Bank proof", "Update", "Other",
+  "Shareholders' Agreement (SHA)", "Investment agreement", "Engagement letter", "Teaser", "Board resolution",
+  "Register extract", "Share certificate", "Allotment confirmation", "Funds confirmation", "Payment instruction",
+  "Payment confirmation", "Bank proof", "Soft commitment confirmation", "Signed document", "Update", "Other",
 ];
+
+// Commitment flows (must match backend/lib/commitments.js).
+export const FLOWS = {
+  HoldCo: ["Intent", "Eligible", "Offer documents issued", "Signed by investor", "Fully executed", "Funds due", "Funds received", "Shares issued", "Active shareholder"],
+  Fund: ["Intent", "Eligible", "Soft commitment", "Soft commitment confirmed", "Awaiting Fund launch"],
+  IB: ["Intent", "Eligible", "NDA signed", "Diligence", "Term sheet", "Definitive documents signed", "Funds transferred", "Closed"],
+};
+export function stageLabel(flow, stage) {
+  return flow === "IB" && stage === "Intent" ? "Interest expressed" : stage;
+}
+export const EXIT_STATUSES = ["On hold", "Dropped", "Rejected", "Withdrawn"];
+export const VEHICLE_STATUSES = ["Draft", "Open", "Closed"];
 export const SIGNATURE_STATUSES = ["Not required", "Sent", "Signed by counterparty", "Fully executed", "Signed offline"];
 
 const AMBER = { bg: "#FFF4E0", fg: "#B8790A" };
@@ -44,3 +57,7 @@ export const KYC_ITEM_COLORS = { Requested: GREY, Received: PURPLE, Verified: GR
 export const SIGNATURE_COLORS = { "Not required": GREY, Sent: AMBER, "Signed by counterparty": BLUE, "Fully executed": GREEN, "Signed offline": GREEN };
 export const TEMPLATE_COLORS = { Draft: AMBER, Active: GREEN, Retired: GREY };
 export const RISK_COLORS = { Low: GREEN, Medium: AMBER, High: RED };
+
+export const COMMITMENT_STATUS_COLORS = { Active: GREEN, "On hold": AMBER, Dropped: GREY, Rejected: RED, Withdrawn: GREY };
+export const VEHICLE_STATUS_COLORS = { Draft: GREY, Open: GREEN, Closed: GREY };
+export const BANK_CHANGE_COLORS = { Pending: AMBER, Approved: GREEN, Rejected: RED, Cancelled: GREY };

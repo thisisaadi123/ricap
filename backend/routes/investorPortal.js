@@ -10,6 +10,8 @@ const v = require("../lib/validate.js");
 const { investorForUser } = require("../lib/identity.js");
 const { receiveFile, saveDocument } = require("../lib/documents.js");
 const { logAudit } = require("../lib/audit.js");
+const { visibleSql, isVisible } = require("../lib/visibility.js");
+const E = require("../lib/commitments.js");
 
 const router = Router();
 router.use(requireAuth, requireRole("investor"));
@@ -105,6 +107,142 @@ router.get("/documents", asyncRoute(async (req, res) => {
     [inv.id]
   );
   res.json({ documents: rows });
+}));
+
+// ---------- M3: opportunities and my investments (PRD 6.14) ----------
+router.get("/opportunities", asyncRoute(async (req, res) => {
+  const inv = await investorForUser(req.user.id);
+  const { rows } = await pool.query(
+    `SELECT v.id, v.type, v.name, v.summary, v.target_raise, v.pre_money_valuation,
+            CASE WHEN $2 = 'Individual' THEN v.min_ticket_individual ELSE v.min_ticket_entity END AS min_ticket,
+            (SELECT c.id FROM commitments c WHERE c.vehicle_id = v.id AND c.investor_id = $1 AND c.status IN ('Active', 'On hold')) AS my_commitment_id,
+            coalesce((SELECT json_agg(json_build_object('id', d.id, 'filename', d.filename, 'title', d.title) ORDER BY d.uploaded_at DESC)
+                      FROM documents d WHERE d.linked_type = 'vehicle' AND d.linked_id = v.id AND d.doc_type = 'Teaser' AND d.voided_at IS NULL), '[]') AS teasers
+     FROM vehicles v WHERE ${visibleSql("investor", 1)} ORDER BY v.id`,
+    [inv.id, inv.kind]
+  );
+  res.json({ opportunities: rows });
+}));
+
+// "I'm interested" (PRD 6.14): creates an Intent for RIV to review.
+router.post("/interest", asyncRoute(async (req, res) => {
+  const inv = await investorForUser(req.user.id);
+  const vehicleId = v.id(req.body?.vehicle_id, "opportunity");
+  const amount = v.number(req.body?.indicative_amount, "Amount", { required: true, min: 1, max: 1e12 });
+  const note = v.text(req.body?.note, "Note", { max: 2000 });
+  if (!(await isVisible(pool, "investor", vehicleId, inv.id))) throw httpError(404, "That opportunity isn't open.");
+  const id = await inTransaction(pool, (client) => E.createCommitment(client, {
+    investorId: inv.id, vehicleId, amount, createdVia: "Investor portal", actorId: req.user.id, note, req,
+  }));
+  res.status(201).json({ commitment_id: id });
+}));
+
+function investorView(c, instruction) {
+  return {
+    id: c.id, flow: c.flow, stage: c.stage, status: c.status, vehicle_id: c.vehicle_id, vehicle_name: c.vehicle_name,
+    indicative_amount: c.indicative_amount, committed_amount: c.committed_amount,
+    received_total: c.received_total,
+    outstanding: c.committed_amount ? Math.max(0, Number(c.committed_amount) - Number(c.received_total)) : null,
+    soft_confirmed_at: c.soft_confirmed_at, shares_issued: c.shares_issued, share_certificate_no: c.share_certificate_no,
+    funds_transferred_amount: c.funds_transferred_amount,
+    next_action: E.investorNextAction(c, { instruction }), created_at: c.created_at, updated_at: c.updated_at,
+  };
+}
+
+async function ownCommitment(userId, id) {
+  const inv = await investorForUser(userId);
+  const c = await E.loadCommitment(pool, id);
+  if (c.investor_id !== inv.id) throw httpError(404, "Commitment not found.");
+  return c;
+}
+
+async function liveInstruction(commitmentId) {
+  const { rows } = await pool.query("SELECT * FROM payment_instructions WHERE commitment_id = $1 AND voided_at IS NULL", [commitmentId]);
+  return rows[0] || null;
+}
+
+router.get("/commitments", asyncRoute(async (req, res) => {
+  const inv = await investorForUser(req.user.id);
+  const { rows } = await pool.query("SELECT id FROM commitments WHERE investor_id = $1 ORDER BY updated_at DESC", [inv.id]);
+  const out = [];
+  for (const r of rows) {
+    const c = await E.loadCommitment(pool, r.id);
+    out.push(investorView(c, await liveInstruction(c.id)));
+  }
+  res.json({ commitments: out });
+}));
+
+router.get("/commitments/:id", asyncRoute(async (req, res) => {
+  const c = await ownCommitment(req.user.id, v.id(req.params.id, "commitment"));
+  const instruction = await liveInstruction(c.id);
+  const { rows: documents } = await pool.query(
+    `SELECT id, doc_type, title, filename, signature_status, version, source, uploaded_at FROM documents
+     WHERE linked_type = 'commitment' AND linked_id = $1 AND confidentiality = 'Shareable with investor' AND voided_at IS NULL
+     ORDER BY uploaded_at DESC`,
+    [c.id]
+  );
+  const { rows: receipts } = await pool.query(
+    `SELECT amount, value_date FROM money_movements
+     WHERE commitment_id = $1 AND type = 'Subscription payment' AND voided_at IS NULL ORDER BY value_date`,
+    [c.id]
+  );
+  // IB deals: deal facts, and the data room once RIV grants access.
+  let deal = null;
+  if (c.flow === "IB") {
+    const { rows } = await pool.query(
+      "SELECT startup_name, instrument, round_size, pre_money_valuation, data_room_url, deal_status FROM ib_deals WHERE vehicle_id = $1",
+      [c.vehicle_id]
+    );
+    const d = rows[0];
+    deal = d && {
+      startup_name: d.startup_name, instrument: d.instrument, round_size: d.round_size, pre_money_valuation: d.pre_money_valuation, deal_status: d.deal_status,
+      data_room_url: c.data_room_granted_at && c.status === "Active" && d.deal_status === "Live" ? d.data_room_url : null,
+    };
+  }
+  res.json({
+    commitment: investorView(c, instruction),
+    deal,
+    stages: E.FLOWS[c.flow],
+    // Bank details only ever come from RIV's portal-issued instructions
+    // (PRD 7); never by email.
+    instruction: instruction && c.stage === "Funds due" ? {
+      amount: instruction.amount, due_date: instruction.due_date, reference: instruction.reference, legal_entity: instruction.legal_entity,
+      bank_name: instruction.bank_name, bank_account_name: instruction.bank_account_name, bank_iban: instruction.bank_iban, bank_swift: instruction.bank_swift,
+    } : null,
+    documents,
+    receipts,
+  });
+}));
+
+router.post("/commitments/:id/confirm-soft", asyncRoute(async (req, res) => {
+  const id = v.id(req.params.id, "commitment");
+  await ownCommitment(req.user.id, id);
+  await inTransaction(pool, async (client) => {
+    const c = await E.loadCommitment(client, id, { lock: true });
+    if (c.flow !== "Fund" || c.stage !== "Soft commitment" || c.status !== "Active") throw httpError(400, "There's no soft commitment waiting for your confirmation.");
+    await client.query("UPDATE commitments SET soft_confirmed_at = now(), soft_confirmation_method = 'Portal' WHERE id = $1", [id]);
+    await E.advance(client, { ...c, soft_confirmed_at: new Date() }, { toStage: "Soft commitment confirmed", actorId: req.user.id, req, note: "Confirmed by the investor in the portal" });
+  });
+  res.json({ ok: true });
+}));
+
+// Investor uploads a payment confirmation or a signed copy. Neither moves
+// anything on its own: a payment confirmation is not proof of receipt
+// (PRD 7), and RIV checks signed copies before using them as evidence.
+router.post("/commitments/:id/upload", receiveFile, asyncRoute(async (req, res) => {
+  const id = v.id(req.params.id, "commitment");
+  const kind = v.oneOf(req.body?.kind, ["Payment confirmation", "Signed document"], "Upload type", { required: true });
+  const c = await ownCommitment(req.user.id, id);
+  if (c.status !== "Active") throw httpError(400, "This commitment isn't active.");
+  const document = await inTransaction(pool, async (client) => {
+    const doc = await saveDocument(client, {
+      file: req.file, docType: kind, title: kind === "Payment confirmation" ? "Payment confirmation from investor" : `Signed copy: ${req.file.originalname}`,
+      linkedType: "commitment", linkedId: id, confidentiality: "Shareable with investor", source: "Investor upload", uploadedBy: req.user.id,
+    });
+    await logAudit({ actorId: req.user.id, action: "commitment.investor_upload", objectType: "commitment", objectId: id, details: { kind }, req }, client);
+    return { id: doc.id, filename: doc.filename, doc_type: doc.doc_type, uploaded_at: doc.uploaded_at };
+  });
+  res.status(201).json({ document });
 }));
 
 module.exports = router;

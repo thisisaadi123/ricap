@@ -10,6 +10,7 @@ const C = require("../lib/constants.js");
 const { logAudit } = require("../lib/audit.js");
 const { receiveFile, saveDocument } = require("../lib/documents.js");
 const { emailInvestorUsers } = require("../lib/notify.js");
+const { recheck } = require("../lib/commitments.js");
 
 const router = Router();
 router.use(requireAuth, requireAdmin, requireRestricted());
@@ -274,6 +275,11 @@ router.post("/:id/decision", asyncRoute(async (req, res) => {
       [id, decision, note, req.user.id, refreshDue, C.KYC_REFRESH_MONTHS]
     );
     await logAudit({ actorId: req.user.id, action: `kyc.${decision === "Cleared" ? "cleared" : decision === "Rejected" ? "rejected" : "info_requested"}`, objectType: "investor", objectId: f.investor_id, details: { kyc_file: id, ...(note ? { note } : {}) }, req }, client);
+    // Clearing KYC can make waiting commitments eligible (PRD 6.5).
+    if (decision === "Cleared") {
+      const { rows: waiting } = await client.query("SELECT id FROM commitments WHERE investor_id = $1 AND stage = 'Intent' AND status = 'Active'", [f.investor_id]);
+      for (const w of waiting) await recheck(client, w.id, { actorId: req.user.id, req });
+    }
     return rows[0];
   });
 

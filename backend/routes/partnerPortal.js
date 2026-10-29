@@ -8,6 +8,9 @@ const { asyncRoute, httpError, inTransaction } = require("../lib/http.js");
 const { partnerForUser } = require("../lib/identity.js");
 const { KYC_STATUS_SQL, readInvestor, readContact } = require("../lib/investorFields.js");
 const { logAudit } = require("../lib/audit.js");
+const v = require("../lib/validate.js");
+const { visibleSql, isVisible } = require("../lib/visibility.js");
+const E = require("../lib/commitments.js");
 
 const router = Router();
 router.use(requireAuth, requireRole("partner"));
@@ -71,6 +74,55 @@ router.post("/investors", asyncRoute(async (req, res) => {
   });
   const { rows } = await pool.query(`${PARTNER_INVESTOR_SQL} AND i.id = $2`, [p.id, id]);
   res.status(201).json({ investor: rows[0] });
+}));
+
+// Vehicles and deals RIV has opened to partners, with their teasers
+// (PRD 9.1, LEG-10).
+router.get("/opportunities", asyncRoute(async (req, res) => {
+  await partnerForUser(req.user.id);
+  const { rows } = await pool.query(
+    `SELECT v.id, v.type, v.name, v.summary, v.target_raise, v.pre_money_valuation, v.min_ticket_individual, v.min_ticket_entity,
+            coalesce((SELECT json_agg(json_build_object('id', d.id, 'filename', d.filename, 'title', d.title) ORDER BY d.uploaded_at DESC)
+                      FROM documents d WHERE d.linked_type = 'vehicle' AND d.linked_id = v.id AND d.doc_type = 'Teaser' AND d.voided_at IS NULL), '[]') AS teasers
+     FROM vehicles v WHERE ${visibleSql("partner")} ORDER BY v.id`
+  );
+  res.json({ opportunities: rows });
+}));
+
+// Commitments of the partner's own investors: stage and amounts only
+// (PRD 9.1). No documents, no other investors.
+router.get("/commitments", asyncRoute(async (req, res) => {
+  const p = await partnerForUser(req.user.id);
+  const { rows } = await pool.query(
+    `SELECT c.id, c.flow, c.stage, c.status, c.indicative_amount, c.committed_amount, c.created_at, c.updated_at,
+            (c.partner_id = $1) AS credited,
+            coalesce(i.display_name, i.legal_name) AS investor_name, v.name AS vehicle_name, v.type AS vehicle_type,
+            coalesce((SELECT sum(m.amount) FROM money_movements m
+                      WHERE m.commitment_id = c.id AND m.type = 'Subscription payment' AND m.voided_at IS NULL), 0) AS received_total
+     FROM commitments c JOIN investors i ON i.id = c.investor_id JOIN vehicles v ON v.id = c.vehicle_id
+     WHERE i.partner_id = $1 ORDER BY c.updated_at DESC`,
+    [p.id]
+  );
+  res.json({ commitments: rows });
+}));
+
+// Propose one of the partner's approved investors for a vehicle (PRD 6.5
+// step 1). RIV takes it from there.
+router.post("/commitments", asyncRoute(async (req, res) => {
+  const p = await partnerForUser(req.user.id);
+  const b = req.body || {};
+  const investorId = v.id(b.investor_id, "investor");
+  const vehicleId = v.id(b.vehicle_id, "vehicle");
+  const amount = v.number(b.indicative_amount, "Indicative amount", { required: true, min: 1, max: 1e12 });
+  const note = v.text(b.note, "Note", { max: 2000 });
+  const { rows: own } = await pool.query("SELECT 1 FROM investors WHERE id = $1 AND partner_id = $2", [investorId, p.id]);
+  if (!own[0]) throw httpError(404, "Investor not found.");
+  if (!(await isVisible(pool, "partner", vehicleId))) throw httpError(404, "That opportunity isn't open.");
+  const id = await inTransaction(pool, (client) => E.createCommitment(client, {
+    investorId, vehicleId, amount, createdVia: "Partner", actorId: req.user.id, note, req,
+  }));
+  const c = await E.loadCommitment(pool, id);
+  res.status(201).json({ commitment: { id: c.id, stage: c.stage, status: c.status, vehicle_name: c.vehicle_name } });
 }));
 
 module.exports = router;

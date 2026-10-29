@@ -27,8 +27,9 @@ const KYC_REFRESH_MONTHS = 12;
 
 const DOC_TYPES = [
   "KYC document", "Venture Partner Agreement", "NDA", "Term sheet", "Subscription Agreement (SSA)",
-  "Shareholders' Agreement (SHA)", "Engagement letter", "Board resolution", "Share certificate",
-  "Payment instruction", "Bank proof", "Update", "Other",
+  "Shareholders' Agreement (SHA)", "Investment agreement", "Engagement letter", "Teaser", "Board resolution",
+  "Register extract", "Share certificate", "Allotment confirmation", "Funds confirmation", "Payment instruction",
+  "Payment confirmation", "Bank proof", "Soft commitment confirmation", "Signed document", "Update", "Other",
 ];
 const CONFIDENTIALITY = ["Restricted", "Internal", "Shareable with investor", "Shareable with partner"];
 const SIGNATURE_STATUSES = ["Not required", "Sent", "Signed by counterparty", "Fully executed", "Signed offline"];

@@ -23,7 +23,13 @@ frontend/    Vite + React
 
 ## Local development
 
-You need Node 18+ and a Postgres database. Use the dedicated RICap Supabase project (Project Settings → Database → Connection string → URI).
+You need Node 18+ and a Postgres database: the dedicated RICap Supabase project (Project Settings → Database → Connection string → URI), or, until that exists, a local one:
+
+```bash
+cd backend && npm run db:local   # leave running; data kept in backend/.localdb
+```
+
+with `DATABASE_URL=postgresql://ricap:ricap-local@localhost:54329/ricap` and `PGSSL=false` in `backend/.env`.
 
 ```bash
 # backend
@@ -44,6 +50,7 @@ Demo accounts (local only; `seed.js` refuses to run in production):
 | Role | Email | Password |
 |---|---|---|
 | Admin | `admin@ricap.demo` | `admin-demo-123` |
+| Second admin (for two-admin approvals) | `admin2@ricap.demo` | `admin2-demo-123` |
 | Venture Partner | `partner@ricap.demo` | `partner-demo-123` |
 | Investor | `investor@ricap.demo` | `investor-demo-123` |
 
@@ -52,6 +59,10 @@ Sign-in has two steps: password, then a 6-digit code sent by email. Until `RESEN
 The seed also creates an onboarded venture partner record for the demo partner, and an approved investor (Demo Family Office LLC) whose contact is the demo investor login. The demo admin has restricted access, so it can see KYC.
 
 Uploaded documents are stored in `backend/storage/` (git-ignored) until the Supabase Storage variables in `.env` are set.
+
+The HoldCo vehicle gets a clearly fake demo receiving account ("DEMO BANK - NOT A REAL ACCOUNT") so payment instructions can be tried locally. Real accounts are set on the Vehicles page and need a second admin's approval.
+
+A step-by-step manual test of everything built so far is in [docs/TEST-CHECKLIST.md](docs/TEST-CHECKLIST.md).
 
 ## Schema changes
 

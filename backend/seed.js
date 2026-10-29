@@ -7,6 +7,8 @@ const { pool, runMigrations } = require("./db.js");
 
 const DEMO_USERS = [
   { email: "admin@ricap.demo", password: "admin-demo-123", name: "RIV Admin", role: "admin", company: "Retail Innovation Ventures" },
+  // A second admin, so the two-admin bank account approval can be tried.
+  { email: "admin2@ricap.demo", password: "admin2-demo-123", name: "Second Admin", role: "admin", company: "Retail Innovation Ventures" },
   { email: "partner@ricap.demo", password: "partner-demo-123", name: "Demo Venture Partner", role: "partner", company: "Demo Partners LLC" },
   { email: "investor@ricap.demo", password: "investor-demo-123", name: "Demo Investor", role: "investor", company: "Demo Family Office" },
 ];
@@ -31,8 +33,17 @@ async function main() {
     console.log(`${rowCount ? "Created" : "Exists "}  ${u.role.padEnd(8)} ${u.email}  /  ${u.password}`);
   }
 
-  // The demo admin can see restricted data (KYC, net worth).
-  await pool.query("UPDATE users SET restricted_access = true WHERE email = 'admin@ricap.demo'");
+  // The demo admins can see restricted data (KYC, net worth).
+  await pool.query("UPDATE users SET restricted_access = true WHERE email IN ('admin@ricap.demo', 'admin2@ricap.demo')");
+
+  // A clearly fake receiving account on the HoldCo vehicle, so payment
+  // instructions can be tried locally. Real accounts go through the
+  // two-admin approval on the Vehicles page.
+  await pool.query(
+    `UPDATE vehicles SET bank_name = 'DEMO BANK - NOT A REAL ACCOUNT', bank_account_name = 'Retail X HoldCo (demo)',
+       bank_iban = 'AE070331234567890123456', bank_swift = 'DEMOAEAD', bank_approved_at = now()
+     WHERE type = 'HoldCo' AND bank_approved_at IS NULL`
+  );
 
   // The demo partner's onboarded partner record (M1).
   const partnerUser = await userId("partner@ricap.demo");

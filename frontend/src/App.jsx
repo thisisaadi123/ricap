@@ -10,14 +10,16 @@ import { LoginView } from "./views/auth/LoginView.jsx";
 import { AcceptInviteView } from "./views/auth/AcceptInviteView.jsx";
 import { ForgotPasswordView, ResetPasswordView } from "./views/auth/PasswordResetViews.jsx";
 import { AdminOverview } from "./views/admin/AdminOverview.jsx";
-import { AdminUsersView } from "./views/admin/AdminUsersView.jsx";
-import { AuditLogView } from "./views/admin/AuditLogView.jsx";
 import { AdminPartnersView } from "./views/admin/AdminPartnersView.jsx";
 import { AdminInvestorsView } from "./views/admin/AdminInvestorsView.jsx";
 import { AdminKycView } from "./views/admin/AdminKycView.jsx";
-import { AdminTemplatesView } from "./views/admin/AdminTemplatesView.jsx";
-import { AdminImportView } from "./views/admin/AdminImportView.jsx";
+import { AdminVehiclesView } from "./views/admin/AdminVehiclesView.jsx";
+import { AdminCommitmentsView } from "./views/admin/AdminCommitmentsView.jsx";
+import { AdminDealsView } from "./views/admin/AdminDealsView.jsx";
+import { AdminSettingsView } from "./views/admin/AdminSettingsView.jsx";
 import { PartnerInvestorsView } from "./views/partner/PartnerInvestorsView.jsx";
+import { PartnerCommitmentsView, PartnerOpportunitiesView } from "./views/partner/PartnerOpportunityViews.jsx";
+import { InvestorInvestmentsView, InvestorOpportunitiesView } from "./views/investor/InvestorInvestmentViews.jsx";
 import { InvestorDocumentsView, InvestorHome, InvestorKycView } from "./views/investor/InvestorViews.jsx";
 
 // Signed-out screens reached by link (from invite / reset emails) or from
@@ -42,6 +44,12 @@ export default function RicapApp() {
   const [notice, setNotice] = useState("");
   // Admin KYC tab: which KYC file is open (null shows the queue).
   const [kycFileId, setKycFileId] = useState(null);
+  // Admin Commitments tab: vehicle filter and the open commitment.
+  const [commitmentVehicle, setCommitmentVehicle] = useState(null);
+  const [commitmentId, setCommitmentId] = useState(null);
+  const [dealId, setDealId] = useState(null);
+  // Investor My investments tab: the open investment.
+  const [investmentId, setInvestmentId] = useState(null);
   useDisableNumberInputScroll();
 
   function goTo(screen, message = "") {
@@ -92,7 +100,7 @@ export default function RicapApp() {
   return (
     <div style={{ minHeight: "100vh", background: BRAND.cream }}>
       <GlobalStyle />
-      <NavBar view={view} setView={(v) => { setView(v); if (v === "kyc") setKycFileId(null); }} user={user} onLogout={() => logout()} />
+      <NavBar view={view} setView={(v) => { setView(v); setKycFileId(null); setCommitmentId(null); setDealId(null); setInvestmentId(null); }} user={user} onLogout={() => logout()} />
       <div style={{ maxWidth: 1160, margin: "0 auto", padding: "28px 24px 60px" }}>
         <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: 20, color: BRAND.ink, marginBottom: 18 }}>{title}</div>
 
@@ -100,14 +108,18 @@ export default function RicapApp() {
         {user.role === "admin" && view === "partners" && <AdminPartnersView />}
         {user.role === "admin" && view === "investors" && <AdminInvestorsView onOpenKyc={(id) => { setKycFileId(id); setView("kyc"); }} />}
         {user.role === "admin" && view === "kyc" && <AdminKycView openFileId={kycFileId} setOpenFileId={setKycFileId} />}
-        {user.role === "admin" && view === "templates" && <AdminTemplatesView />}
-        {user.role === "admin" && view === "import" && <AdminImportView />}
-        {user.role === "admin" && view === "users" && <AdminUsersView currentUser={user} />}
-        {user.role === "admin" && view === "audit" && <AuditLogView />}
+        {user.role === "admin" && view === "vehicles" && <AdminVehiclesView currentUser={user} onOpenCommitments={(id) => { setCommitmentVehicle(id); setCommitmentId(null); setView("commitments"); }} />}
+        {user.role === "admin" && view === "deals" && <AdminDealsView openId={dealId} setOpenId={setDealId} onOpenCommitment={(id) => { setCommitmentId(id); setView("commitments"); }} />}
+        {user.role === "admin" && view === "commitments" && <AdminCommitmentsView vehicleFilter={commitmentVehicle} setVehicleFilter={setCommitmentVehicle} openId={commitmentId} setOpenId={setCommitmentId} />}
+        {user.role === "admin" && view === "settings" && <AdminSettingsView currentUser={user} />}
 
         {user.role === "partner" && view === "investors" && <PartnerInvestorsView />}
+        {user.role === "partner" && view === "opportunities" && <PartnerOpportunitiesView />}
+        {user.role === "partner" && view === "commitments" && <PartnerCommitmentsView />}
 
         {user.role === "investor" && view === "home" && <InvestorHome user={user} onNavigate={setView} />}
+        {user.role === "investor" && view === "investments" && <InvestorInvestmentsView openId={investmentId} setOpenId={setInvestmentId} />}
+        {user.role === "investor" && view === "opportunities" && <InvestorOpportunitiesView onOpenInvestment={(id) => { setInvestmentId(id); setView("investments"); }} />}
         {user.role === "investor" && view === "kyc" && <InvestorKycView />}
         {user.role === "investor" && view === "documents" && <InvestorDocumentsView />}
       </div>

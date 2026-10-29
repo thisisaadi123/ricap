@@ -12,11 +12,13 @@ import {
 } from "./ui.jsx";
 import { DocLink, FileButton, Muted, Row, Select, SignatureBadge, sizeStr, uploadedLine } from "./forms.jsx";
 
-const SHARE_OPTION = { investor: "Shareable with investor", partner: "Shareable with partner" };
+const SHARE_OPTION = { investor: "Shareable with investor", partner: "Shareable with partner", commitment: "Shareable with investor" };
+const SHARE_LABEL = { investor: "RIV team + this investor", partner: "RIV team + this partner", commitment: "RIV team + the investor" };
+const DEFAULT_TYPE = { partner: "Venture Partner Agreement", vehicle: "Teaser" };
 
 function UploadModal({ linkedType, linkedId, onClose, onDone }) {
   const [file, setFile] = useState(null);
-  const [form, setForm] = useState({ doc_type: linkedType === "partner" ? "Venture Partner Agreement" : "Other", title: "", confidentiality: "Internal", signature_status: "Not required", source: "Admin upload" });
+  const [form, setForm] = useState({ doc_type: DEFAULT_TYPE[linkedType] || "Other", title: "", confidentiality: "Internal", signature_status: "Not required", source: "Admin upload" });
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const set = (k) => (val) => setForm((f) => ({ ...f, [k]: val }));
@@ -48,8 +50,8 @@ function UploadModal({ linkedType, linkedId, onClose, onDone }) {
         <Row>
           <Field label="Who can see it" required>
             <Select value={form.confidentiality} onChange={set("confidentiality")} options={[
-              { value: "Internal", label: "RIV team only" },
-              { value: SHARE_OPTION[linkedType], label: `RIV team + this ${linkedType}` },
+              { value: "Internal", label: linkedType === "vehicle" ? "RIV team (teasers also go to partners and investors)" : "RIV team only" },
+              ...(SHARE_OPTION[linkedType] ? [{ value: SHARE_OPTION[linkedType], label: SHARE_LABEL[linkedType] }] : []),
               { value: "Restricted", label: "Restricted admins only" },
             ]} />
           </Field>
@@ -112,7 +114,7 @@ export function DocumentsPanel({ linkedType, linkedId }) {
                 <div><Muted>{d.doc_type} · {uploadedLine(d)}</Muted></div>
                 {d.voided_at && <div><Muted style={{ color: "#D33639" }}>Voided: {d.void_reason}</Muted></div>}
               </td>
-              <td style={cellStyle}>{d.confidentiality === "Internal" ? "RIV team" : d.confidentiality === "Restricted" ? "Restricted admins" : `RIV + ${linkedType}`}</td>
+              <td style={cellStyle}>{d.confidentiality === "Internal" ? (d.doc_type === "Teaser" && linkedType === "vehicle" ? "RIV, partners, investors" : "RIV team") : d.confidentiality === "Restricted" ? "Restricted admins" : SHARE_LABEL[linkedType]}</td>
               <td style={cellStyle}>
                 {d.voided_at ? <SignatureBadge status={d.signature_status} /> : (
                   <Select value={d.signature_status} options={SIGNATURE_STATUSES} style={{ padding: "6px 8px", fontSize: 12, width: 170 }}

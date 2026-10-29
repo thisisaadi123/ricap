@@ -78,7 +78,7 @@ Tables follow PRD Section 8. Each milestone adds its own migration file.
 | M0 Foundation | `users`, `user_invites`, `password_resets`, `login_codes`, `audit_log` |
 | M1 People | `venture_partners`, `investors` (partner credit window lives on the investor: `partner_id`, `credit_expires_at`), `investor_contacts`, `bigin_imports`; `users.restricted_access` |
 | M2 KYC & documents | `kyc_checklist_templates`, `kyc_files`, `kyc_items`, `kyc_ubos`, `documents`, `document_templates` |
-| M3 HoldCo + Fund soft commitments | `vehicles`, `vehicle_minimums`, `commitments`, `commitment_events` |
+| M3 HoldCo + Fund soft commitments | `vehicles` (minimum tickets per investor kind live on the vehicle), `bank_account_changes`, `vehicle_visibility`, `commitments`, `commitment_events`, `commitment_notes`, `payment_instructions`, `money_movements`, `stage_requirements` |
 | M4 IB deals | `ib_deals`, `deal_access_log`, `fee_invoices` |
 | M5 Money & payouts | `money_movements`, `partner_payouts`, `outbound_investments`, `bank_account_changes` |
 | M6 Investor portal | `investor_updates`, `update_deliveries`, `notifications`, `interest_requests`, `vehicle_visibility` |
@@ -91,6 +91,16 @@ Tables follow PRD Section 8. Each milestone adds its own migration file.
 - **Bigin import.** CSV upload with a preview step. Column names are matched against the aliases in `backend/routes/imports.js`; add the real export's headers there if any aren't recognised.
 - **File storage.** `backend/lib/storage.js` has two drivers: a local folder (`backend/storage`, development only) and Supabase Storage via its S3 API (same approach as RISE), chosen automatically when the `SUPABASE_S3_*` variables are set. Downloads always go through a 60-second link, and every open of a KYC or restricted document is written to the audit log.
 - **Still manual in v1.** Signature status is tracked by hand on each document until Zoho Sign is connected (needs RIV's Zoho Sign API credentials). Sanctions / PEP screening results are entered by hand (PRD 3). Emails go through Resend once configured; until then they're printed in the backend terminal.
+
+### M3–M4 notes
+
+- **One engine for every flow** (`backend/lib/commitments.js`): the stages of HoldCo, Fund and IB, the eligibility check, and moving one stage at a time. A move is refused with a plain list of what's missing. Stages can't be skipped.
+- **Eligibility** (PRD 6.5): approved investor, KYC cleared and not expired, amount at least the vehicle's minimum for the investor kind (an admin can override the minimum with a logged reason), and an allowed KYC classification. Clearing KYC automatically re-checks that investor's waiting commitments.
+- **Stage evidence** (PRD 7): the documents each stage needs are rows in `stage_requirements`, editable under Settings > Stage evidence. A document counts as evidence when it's tagged with that stage. Investors' uploaded signed copies are tagged by RIV before they count.
+- **Money** (PRD 7, 8.8): payment instructions copy the vehicle's approved bank account at issue time. Only admins record receipts, always with bank proof; partial receipts are allowed, and the full amount moves the commitment to Funds received. Changing a vehicle's receiving account needs a second admin. Receipts and instructions are voided, never deleted.
+- **Fund in v1** (LEG-3, MON-5): soft commitments only. The investor confirms in the portal, or RIV uploads their emailed confirmation.
+- **IB deals** (BIZ-3, MON-1, MON-7, LEG-11): rounds under USD 2M need sweat equity; under USD 500K also need a recorded reason. Sweat equity is valued at pre-money. Investors pay the startup directly; RIV records the startup's confirmation. Fee invoices bill the cash fee on confirmed placements plus VAT, from Retail X HoldCo, each placement once. Closing a deal withdraws investors who hadn't transferred funds; funded investors stay active until allotment.
+- **Visibility**: partners and investors see Open vehicles and Live deals flagged visible to them; an admin can hide a vehicle from individual investors. Teasers are documents of type "Teaser" on the vehicle.
 
 ## 6. Pages by role
 

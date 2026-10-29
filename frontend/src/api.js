@@ -137,8 +137,54 @@ export const api = {
   uploadTemplate: (file, fields) => request("/admin/templates/documents", { method: "POST", form: formOf(file, fields) }),
   setTemplateStatus: (id, status) => request(`/admin/templates/documents/${id}`, { method: "PATCH", body: { status } }),
 
+  listStageRequirements: () => request("/admin/templates/stage-requirements"),
+  addStageRequirement: (body) => request("/admin/templates/stage-requirements", { method: "POST", body }),
+  setStageRequirementRequired: (id, required) => request(`/admin/templates/stage-requirements/${id}`, { method: "PATCH", body: { required } }),
+
+  // admin: vehicles (M3)
+  listVehicles: () => request("/admin/vehicles"),
+  getVehicle: (id) => request(`/admin/vehicles/${id}`),
+  updateVehicle: (id, body) => request(`/admin/vehicles/${id}`, { method: "PATCH", body }),
+  proposeBankChange: (id, body) => request(`/admin/vehicles/${id}/bank-changes`, { method: "POST", body }),
+  decideBankChange: (changeId, decision, note) => request(`/admin/vehicles/bank-changes/${changeId}/${decision}`, { method: "POST", body: { note } }),
+  hideVehicle: (id, investor_id) => request(`/admin/vehicles/${id}/hidden`, { method: "POST", body: { investor_id } }),
+  unhideVehicle: (id, investorId) => request(`/admin/vehicles/${id}/hidden/${investorId}`, { method: "DELETE" }),
+
+  // admin: commitments (M3)
+  listCommitments: (params = {}) => request(`/admin/commitments${query(params)}`),
+  getCommitment: (id) => request(`/admin/commitments/${id}`),
+  createCommitment: (body) => request("/admin/commitments", { method: "POST", body }),
+  updateCommitment: (id, body) => request(`/admin/commitments/${id}`, { method: "PATCH", body }),
+  checkEligibility: (id) => request(`/admin/commitments/${id}/check-eligibility`, { method: "POST" }),
+  overrideMinimum: (id, reason) => request(`/admin/commitments/${id}/override-minimum`, { method: "POST", body: { reason } }),
+  advanceCommitment: (id, body) => request(`/admin/commitments/${id}/advance`, { method: "POST", body }),
+  exitCommitment: (id, status, reason) => request(`/admin/commitments/${id}/exit`, { method: "POST", body: { status, reason } }),
+  reopenCommitment: (id, note) => request(`/admin/commitments/${id}/reopen`, { method: "POST", body: { note } }),
+  addCommitmentNote: (id, note) => request(`/admin/commitments/${id}/notes`, { method: "POST", body: { note } }),
+  issueInstructions: (id, due_date) => request(`/admin/commitments/${id}/instructions`, { method: "POST", body: { due_date } }),
+  voidInstructions: (id, iid, reason) => request(`/admin/commitments/${id}/instructions/${iid}/void`, { method: "POST", body: { reason } }),
+  recordReceipt: (id, file, fields) => request(`/admin/commitments/${id}/receipts`, { method: "POST", form: formOf(file, fields) }),
+  voidReceipt: (id, rid, reason) => request(`/admin/commitments/${id}/receipts/${rid}/void`, { method: "POST", body: { reason } }),
+  softConfirmByEmail: (id, file) => request(`/admin/commitments/${id}/soft-confirm`, { method: "POST", form: formOf(file) }),
+  dataRoom: (id, action) => request(`/admin/commitments/${id}/data-room/${action}`, { method: "POST" }),
+
+  // admin: IB deals (M4)
+  listDeals: () => request("/admin/deals"),
+  getDeal: (id) => request(`/admin/deals/${id}`),
+  createDeal: (body) => request("/admin/deals", { method: "POST", body }),
+  updateDeal: (id, body) => request(`/admin/deals/${id}`, { method: "PATCH", body }),
+  advanceDeal: (id, body) => request(`/admin/deals/${id}/advance`, { method: "POST", body }),
+  closeDeal: (id, status, reason) => request(`/admin/deals/${id}/close`, { method: "POST", body: { status, reason } }),
+  createInvoice: (id, body) => request(`/admin/deals/${id}/invoices`, { method: "POST", body }),
+  sendInvoice: (iid) => request(`/admin/deals/invoices/${iid}/send`, { method: "POST" }),
+  recordInvoicePayment: (iid, file, fields) => request(`/admin/deals/invoices/${iid}/payment`, { method: "POST", form: formOf(file, fields) }),
+  voidInvoice: (iid, reason) => request(`/admin/deals/invoices/${iid}/void`, { method: "POST", body: { reason } }),
+
   // venture partner (M1)
   partnerMe: () => request("/partner/me"),
+  partnerOpportunities: () => request("/partner/opportunities"),
+  partnerCommitments: () => request("/partner/commitments"),
+  partnerPropose: (body) => request("/partner/commitments", { method: "POST", body }),
   partnerInvestors: () => request("/partner/investors"),
   partnerAddInvestor: (body) => request("/partner/investors", { method: "POST", body }),
 
@@ -148,4 +194,10 @@ export const api = {
   investorUploadKyc: (itemId, file) => request(`/investor/kyc/items/${itemId}/upload`, { method: "POST", form: formOf(file) }),
   investorSubmitKyc: () => request("/investor/kyc/submit", { method: "POST" }),
   investorDocuments: () => request("/investor/documents"),
+  investorOpportunities: () => request("/investor/opportunities"),
+  investorInterest: (body) => request("/investor/interest", { method: "POST", body }),
+  investorCommitments: () => request("/investor/commitments"),
+  investorCommitment: (id) => request(`/investor/commitments/${id}`),
+  investorConfirmSoft: (id) => request(`/investor/commitments/${id}/confirm-soft`, { method: "POST" }),
+  investorCommitmentUpload: (id, file, kind) => request(`/investor/commitments/${id}/upload`, { method: "POST", form: formOf(file, { kind }) }),
 };

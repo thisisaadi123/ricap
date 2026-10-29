@@ -29,9 +29,11 @@ export function InvestorHome({ user, onNavigate }) {
   const [me, setMe] = useState(null);
   const [kyc, setKyc] = useState(null);
   const [docs, setDocs] = useState(null);
+  const [investments, setInvestments] = useState(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    api.investorCommitments().then((r) => setInvestments(r.commitments)).catch(() => {});
     api.investorMe().then((r) => setMe(r.investor)).catch((e) => setError(e.message));
     api.investorKyc().then(setKyc).catch(() => {});
     api.investorDocuments().then((r) => setDocs(r.documents)).catch(() => {});
@@ -60,9 +62,14 @@ export function InvestorHome({ user, onNavigate }) {
           <div style={{ fontSize: 24, fontWeight: 700 }}>{docs ? docs.length : "–"}</div>
           <div style={{ fontSize: 12.5, color: MUTED, marginTop: 4 }}>shared with you by RIV</div>
         </Card>
-        <Card style={{ padding: 18 }}>
+        <Card style={{ padding: 18, cursor: "pointer" }} onClick={() => onNavigate("investments")}>
           <div style={{ fontWeight: 700, marginBottom: 8 }}>Your investments</div>
-          <div style={{ fontSize: 12.5, color: MUTED, lineHeight: 1.6 }}>Your holdings, documents to sign and payment details will appear here.</div>
+          <div style={{ fontSize: 24, fontWeight: 700 }}>{investments ? investments.filter((i) => ["Active", "On hold"].includes(i.status)).length : "–"}</div>
+          <div style={{ fontSize: 12.5, color: MUTED, marginTop: 4, lineHeight: 1.6 }}>
+            {investments && investments.filter((i) => i.status === "Active" && i.next_action).length
+              ? `${investments.filter((i) => i.status === "Active" && i.next_action).length} with something for you or RIV to do`
+              : "Holdings, documents to sign and payments appear here."}
+          </div>
         </Card>
       </div>
     </div>

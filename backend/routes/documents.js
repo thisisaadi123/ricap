@@ -45,7 +45,9 @@ fileRouter.get("/:token", (req, res) => {
 // ---------- admin ----------
 adminRouter.use(requireAuth, requireAdmin);
 
-const LINKABLE = { investor: "investors", partner: "venture_partners" };
+const LINKABLE = { investor: "investors", partner: "venture_partners", commitment: "commitments", vehicle: "vehicles" };
+// Who a document on each kind of record can be shared with.
+const SHARE_TARGET = { investor: "Shareable with investor", commitment: "Shareable with investor", partner: "Shareable with partner" };
 
 async function assertCanTouch(userId, doc) {
   if ((doc.confidentiality === "Restricted" || doc.linked_type.startsWith("kyc_")) && !(await hasRestrictedAccess(userId))) {
@@ -63,17 +65,24 @@ adminRouter.post("/", receiveFile, asyncRoute(async (req, res) => {
   const signatureStatus = v.oneOf(b.signature_status || "Not required", C.SIGNATURE_STATUSES, "Signature status", { required: true });
   const source = v.oneOf(b.source || "Admin upload", C.DOC_SOURCES.filter((s) => s !== "Investor upload"), "Source", { required: true });
   const title = v.text(b.title, "Title", { max: 300 }) || req.file.originalname;
-  if (confidentiality === "Shareable with partner" && linkedType !== "partner") throw httpError(400, "Only partner documents can be shared with a partner.");
-  if (confidentiality === "Shareable with investor" && linkedType !== "investor") throw httpError(400, "Only investor documents can be shared with an investor.");
+  // Evidence for a commitment or IB deal stage (PRD 7); see
+  // lib/commitments.js and lib/deals.js.
+  const evidenceStage = ["commitment", "vehicle"].includes(linkedType) ? v.text(b.evidence_stage, "Evidence for stage", { max: 60 }) : null;
+  if (confidentiality.startsWith("Shareable") && SHARE_TARGET[linkedType] !== confidentiality) {
+    throw httpError(400, linkedType === "vehicle" ? "Vehicle documents stay internal; teasers are shown to partners and investors automatically." : `A ${linkedType} document can't be "${confidentiality}".`);
+  }
   if (confidentiality === "Restricted" && !(await hasRestrictedAccess(req.user.id))) throw httpError(403, "Restricted documents need restricted access.");
 
   const document = await inTransaction(pool, async (client) => {
     const { rows } = await client.query(`SELECT id FROM ${LINKABLE[linkedType]} WHERE id = $1`, [linkedId]);
     if (!rows[0]) throw httpError(404, `That ${linkedType} doesn't exist.`);
-    const doc = await saveDocument(client, {
+    let doc = await saveDocument(client, {
       file: req.file, docType, title, linkedType, linkedId, confidentiality, source, uploadedBy: req.user.id, signatureStatus,
     });
-    await logAudit({ actorId: req.user.id, action: "document.uploaded", objectType: linkedType, objectId: linkedId, details: { title, doc_type: docType }, req }, client);
+    if (evidenceStage) {
+      ({ rows: [doc] } = await client.query("UPDATE documents SET evidence_stage = $2 WHERE id = $1 RETURNING *", [doc.id, evidenceStage]));
+    }
+    await logAudit({ actorId: req.user.id, action: "document.uploaded", objectType: linkedType, objectId: linkedId, details: { title, doc_type: docType, ...(evidenceStage ? { evidence_for: evidenceStage } : {}) }, req }, client);
     return doc;
   });
   res.status(201).json({ document });
@@ -104,6 +113,10 @@ adminRouter.patch("/:id", asyncRoute(async (req, res) => {
   if (b.zoho_envelope_id !== undefined) fields.zoho_envelope_id = v.text(b.zoho_envelope_id, "Zoho Sign envelope ID", { max: 200 });
   if (b.title !== undefined) fields.title = v.text(b.title, "Title", { required: true, max: 300 });
   if (b.confidentiality !== undefined) fields.confidentiality = v.oneOf(b.confidentiality, C.CONFIDENTIALITY, "Confidentiality", { required: true });
+  // Re-tagging (e.g. an investor's uploaded signed copy used as stage
+  // evidence) is allowed on commitment documents.
+  if (b.doc_type !== undefined) fields.doc_type = v.oneOf(b.doc_type, C.DOC_TYPES, "Document type", { required: true });
+  if (b.evidence_stage !== undefined) fields.evidence_stage = v.text(b.evidence_stage, "Evidence for stage", { max: 60 });
   const document = await inTransaction(pool, async (client) => {
     const { rows } = await client.query("SELECT * FROM documents WHERE id = $1 FOR UPDATE", [id]);
     const doc = rows[0];
@@ -111,6 +124,8 @@ adminRouter.patch("/:id", asyncRoute(async (req, res) => {
     await assertCanTouch(req.user.id, { ...doc, ...fields });
     if (doc.voided_at) throw httpError(400, "This document is voided.");
     if (doc.linked_type.startsWith("kyc_") && fields.confidentiality && fields.confidentiality !== "Restricted") throw httpError(400, "KYC documents always stay restricted.");
+    if ((fields.doc_type || fields.evidence_stage !== undefined) && !["commitment", "vehicle"].includes(doc.linked_type)) throw httpError(400, "Only commitment and deal documents can be re-tagged.");
+    if (fields.confidentiality?.startsWith("Shareable") && SHARE_TARGET[doc.linked_type] !== fields.confidentiality) throw httpError(400, `A ${doc.linked_type} document can't be "${fields.confidentiality}".`);
     const cols = Object.keys(fields);
     if (!cols.length) return doc;
     const { rows: updated } = await client.query(
@@ -139,6 +154,7 @@ adminRouter.post("/:id/version", receiveFile, asyncRoute(async (req, res) => {
       file: req.file, docType: old.doc_type, title: old.title, linkedType: old.linked_type, linkedId: old.linked_id,
       confidentiality: old.confidentiality, source: "Admin upload", uploadedBy: req.user.id, signatureStatus, replaces: old,
     });
+    if (old.evidence_stage) await client.query("UPDATE documents SET evidence_stage = $2 WHERE id = $1", [doc.id, old.evidence_stage]);
     await logAudit({ actorId: req.user.id, action: "document.new_version", objectType: "document", objectId: doc.id, details: { title: old.title, version: doc.version }, req }, client);
     return doc;
   });

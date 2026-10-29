@@ -111,4 +111,36 @@ router.patch("/documents/:id", asyncRoute(async (req, res) => {
   res.json({ template });
 }));
 
+// ---------- stage evidence (PRD 7: document checklist per stage) ----------
+const EVIDENCE_FLOWS = ["HoldCo", "Fund", "IB", "IB deal"];
+
+router.get("/stage-requirements", asyncRoute(async (req, res) => {
+  const { rows } = await pool.query("SELECT * FROM stage_requirements ORDER BY flow, stage, sort_order, id");
+  res.json({ requirements: rows });
+}));
+
+router.post("/stage-requirements", asyncRoute(async (req, res) => {
+  const b = req.body || {};
+  const flow = v.oneOf(b.flow, EVIDENCE_FLOWS, "Flow", { required: true });
+  const stage = v.text(b.stage, "Stage", { required: true, max: 60 });
+  const label = v.text(b.label, "What's needed", { required: true, max: 200 });
+  const docType = v.oneOf(b.doc_type, C.DOC_TYPES, "Document type", { required: true });
+  const { rows } = await pool.query(
+    `INSERT INTO stage_requirements (flow, stage, label, doc_type, sort_order)
+     VALUES ($1, $2, $3, $4, (SELECT coalesce(max(sort_order), 0) + 10 FROM stage_requirements WHERE flow = $1 AND stage = $2)) RETURNING *`,
+    [flow, stage, label, docType]
+  );
+  await logAudit({ actorId: req.user.id, action: "stage_requirement.added", objectType: "stage_requirement", objectId: rows[0].id, details: { flow, stage, label }, req });
+  res.status(201).json({ requirement: rows[0] });
+}));
+
+router.patch("/stage-requirements/:id", asyncRoute(async (req, res) => {
+  const id = v.id(req.params.id, "requirement");
+  const required = v.bool(req.body?.required);
+  const { rows } = await pool.query("UPDATE stage_requirements SET required = $2 WHERE id = $1 RETURNING *", [id, required]);
+  if (!rows[0]) throw httpError(404, "Requirement not found.");
+  await logAudit({ actorId: req.user.id, action: "stage_requirement.updated", objectType: "stage_requirement", objectId: id, details: { required }, req });
+  res.json({ requirement: rows[0] });
+}));
+
 module.exports = router;

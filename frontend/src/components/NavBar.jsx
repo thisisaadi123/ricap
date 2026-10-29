@@ -11,16 +11,20 @@ export function navItemsFor(role) {
     { id: "partners", label: "Partners" },
     { id: "investors", label: "Investors" },
     { id: "kyc", label: "KYC" },
-    { id: "templates", label: "Templates" },
-    { id: "import", label: "Bigin import" },
-    { id: "users", label: "Users" },
-    { id: "audit", label: "Audit log" },
+    { id: "vehicles", label: "Vehicles" },
+    { id: "deals", label: "IB deals" },
+    { id: "commitments", label: "Commitments" },
+    { id: "settings", label: "Settings" },
   ];
   if (role === "partner") return [
     { id: "investors", label: "My investors" },
+    { id: "opportunities", label: "Opportunities" },
+    { id: "commitments", label: "Commitments" },
   ];
   return [
     { id: "home", label: "Home" },
+    { id: "investments", label: "My investments" },
+    { id: "opportunities", label: "Opportunities" },
     { id: "kyc", label: "KYC" },
     { id: "documents", label: "Documents" },
   ];

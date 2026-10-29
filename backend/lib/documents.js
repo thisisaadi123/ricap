@@ -4,6 +4,7 @@ const multer = require("multer");
 const { httpError } = require("./http.js");
 const { putFile, deleteFile } = require("./storage.js");
 const { hasRestrictedAccess } = require("./identity.js");
+const { isVisible } = require("./visibility.js");
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const ALLOWED_TYPES = {
@@ -70,9 +71,11 @@ async function saveDocument(client, { file, docType, title, linkedType, linkedId
 // Who may open a document (PRD 9.1):
 //   admin    - everything, but Restricted and KYC documents need
 //              restricted_access; voided documents only for admins
-//   investor - their own KYC uploads, and their investor's documents marked
-//              "Shareable with investor"
-//   partner  - their own partner documents marked "Shareable with partner"
+//   investor - their own KYC uploads, their investor's and commitments'
+//              documents marked "Shareable with investor", and teasers of
+//              vehicles they can see
+//   partner  - their own partner documents marked "Shareable with partner",
+//              and teasers of vehicles they can see
 async function canAccessDocument(db, user, doc) {
   const kycDoc = doc.linked_type === "kyc_item" || doc.linked_type === "kyc_ubo";
   if (user.role === "admin") {
@@ -84,6 +87,12 @@ async function canAccessDocument(db, user, doc) {
     const investorId = rows[0]?.investor_id;
     if (!investorId) return false;
     if (doc.linked_type === "investor") return doc.linked_id === investorId && doc.confidentiality === "Shareable with investor";
+    if (doc.linked_type === "commitment") {
+      if (doc.confidentiality !== "Shareable with investor") return false;
+      const { rows: own } = await db.query("SELECT 1 FROM commitments WHERE id = $1 AND investor_id = $2", [doc.linked_id, investorId]);
+      return Boolean(own[0]);
+    }
+    if (doc.linked_type === "vehicle") return doc.doc_type === "Teaser" && isVisible(db, "investor", doc.linked_id, investorId);
     if (doc.linked_type === "kyc_item") {
       const { rows: own } = await db.query(
         "SELECT 1 FROM kyc_items it JOIN kyc_files f ON f.id = it.kyc_file_id WHERE it.id = $1 AND f.investor_id = $2",
@@ -94,6 +103,7 @@ async function canAccessDocument(db, user, doc) {
     return false;
   }
   if (user.role === "partner") {
+    if (doc.linked_type === "vehicle") return doc.doc_type === "Teaser" && isVisible(db, "partner", doc.linked_id);
     if (doc.linked_type !== "partner" || doc.confidentiality !== "Shareable with partner") return false;
     const { rows } = await db.query("SELECT 1 FROM venture_partners WHERE id = $1 AND user_id = $2", [doc.linked_id, user.id]);
     return Boolean(rows[0]);
