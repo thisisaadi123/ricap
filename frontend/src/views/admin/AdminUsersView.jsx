@@ -16,7 +16,7 @@ export const USER_STATUS_COLORS = {
 
 // When email isn't configured (local dev), the API hands back the invite
 // link so the admin can copy it and share it another way.
-function InviteLinkNotice({ link }) {
+export function InviteLinkNotice({ link }) {
   const [copied, setCopied] = useState(false);
   if (!link) return null;
   return (
@@ -112,6 +112,19 @@ export function AdminUsersView({ currentUser }) {
     }
   }
 
+  async function toggleRestricted(u) {
+    setBusyId(u.id); setError("");
+    try {
+      await api.setRestrictedAccess(u.id, !u.restricted_access);
+      showSuccess(`${u.name} ${u.restricted_access ? "no longer has" : "now has"} restricted access.`);
+      load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   async function toggleStatus(u) {
     const next = u.status === "suspended" ? "active" : "suspended";
     if (next === "suspended" && !window.confirm(`Suspend ${u.name}? They'll be signed out and can't sign in until reactivated.`)) return;
@@ -147,7 +160,15 @@ export function AdminUsersView({ currentUser }) {
                 {u.company && <div style={{ color: MUTED, fontSize: 11.5 }}>{u.company}</div>}
               </td>
               <td style={cellStyle}>{u.email}</td>
-              <td style={cellStyle}>{ROLE_LABELS[u.role]}</td>
+              <td style={cellStyle}>
+                {ROLE_LABELS[u.role]}
+                {u.role === "admin" && (
+                  <label style={{ display: "flex", gap: 5, alignItems: "center", fontSize: 11, color: MUTED, marginTop: 4 }} title="Can see KYC files and documents, and investor net worth">
+                    <input type="checkbox" checked={u.restricted_access} disabled={u.id === currentUser.id || busyId === u.id} onChange={() => toggleRestricted(u)} />
+                    Restricted access
+                  </label>
+                )}
+              </td>
               <td style={cellStyle}>
                 <StatusBadge status={u.status} colors={USER_STATUS_COLORS} label={u.status[0].toUpperCase() + u.status.slice(1)} />
                 {u.status === "invited" && (

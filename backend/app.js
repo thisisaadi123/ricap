@@ -4,6 +4,14 @@ const path = require("path");
 const { runMigrations } = require("./db.js");
 const authRoutes = require("./routes/auth.js");
 const adminRoutes = require("./routes/admin.js");
+const partnerRoutes = require("./routes/partners.js");
+const investorRoutes = require("./routes/investors.js");
+const importRoutes = require("./routes/imports.js");
+const kycRoutes = require("./routes/kyc.js");
+const templateRoutes = require("./routes/templates.js");
+const documentRoutes = require("./routes/documents.js");
+const partnerPortalRoutes = require("./routes/partnerPortal.js");
+const investorPortalRoutes = require("./routes/investorPortal.js");
 
 const app = express();
 app.disable("x-powered-by");
@@ -12,7 +20,12 @@ app.disable("x-powered-by");
 // (used by rate limits and the audit log) without letting a client spoof it
 // by sending its own X-Forwarded-For.
 app.set("trust proxy", 1);
-app.use(express.json({ limit: "1mb" }));
+
+// 1 MB JSON bodies everywhere except the Bigin import, which parses its own
+// larger body (CSV text) in routes/imports.js. File uploads are multipart
+// and handled by multer per route.
+const json = express.json({ limit: "1mb" });
+app.use((req, res, next) => (req.path.startsWith("/api/admin/import") ? next() : json(req, res, next)));
 
 // The frontend is served from the same origin in dev (Vite proxy) and in
 // production (Netlify redirect), so no CORS is needed. Keep it that way:
@@ -20,7 +33,17 @@ app.use(express.json({ limit: "1mb" }));
 
 app.get("/api/health", (req, res) => res.json({ ok: true }));
 app.use("/api/auth", authRoutes);
+app.use("/api/admin/partners", partnerRoutes);
+app.use("/api/admin/investors", investorRoutes);
+app.use("/api/admin/import", importRoutes);
+app.use("/api/admin/kyc", kycRoutes);
+app.use("/api/admin/templates", templateRoutes);
+app.use("/api/admin/documents", documentRoutes.adminRouter);
 app.use("/api/admin", adminRoutes);
+app.use("/api/documents", documentRoutes.linkRouter);
+app.use("/api/files", documentRoutes.fileRouter);
+app.use("/api/partner", partnerPortalRoutes);
+app.use("/api/investor", investorPortalRoutes);
 app.use("/api", (req, res) => res.status(404).json({ error: "Not found." }));
 
 const frontendDist = path.join(__dirname, "../frontend/dist");
@@ -30,8 +53,13 @@ app.get(/^(?!\/api).*/, (req, res) => {
 });
 
 app.use((err, req, res, next) => {
+  if (err.type === "entity.too.large") return res.status(413).json({ error: "That request is too large." });
   if (err.status && err.status < 500) return res.status(err.status).json({ error: err.message });
   if (err.status === 503) return res.status(503).json({ error: err.message });
+  // Postgres constraint violations reaching here are input problems the
+  // route didn't catch; report them as 400 rather than a server error.
+  if (err.code === "23505") return res.status(409).json({ error: "That would create a duplicate record." });
+  if (err.code === "23514" || err.code === "23502") return res.status(400).json({ error: "Some of the values aren't allowed." });
   console.error(err);
   res.status(500).json({ error: "Something went wrong on the server." });
 });

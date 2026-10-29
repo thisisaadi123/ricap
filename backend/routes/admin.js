@@ -14,7 +14,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 router.get("/users", async (req, res, next) => {
   try {
     const { rows } = await pool.query(`
-      SELECT u.id, u.email, u.name, u.role, u.status, u.company, u.last_login_at, u.created_at,
+      SELECT u.id, u.email, u.name, u.role, u.status, u.company, u.last_login_at, u.created_at, u.restricted_access,
              (SELECT max(i.expires_at) FROM user_invites i
                WHERE i.user_id = u.id AND i.used_at IS NULL AND i.expires_at > now()) AS invite_expires_at
       FROM users u
@@ -103,6 +103,28 @@ router.patch("/users/:id/status", async (req, res, next) => {
     if (!user) return res.status(404).json({ error: "User not found." });
     await logAudit({ actorId: req.user.id, action: target === "suspended" ? "user.suspended" : "user.reactivated", objectType: "user", objectId: user.id, req });
     res.json({ user });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Restricted access (KYC files and documents, investor net worth and
+// inclination; PRD 8.2, 9.1). Only an admin who has it can grant or remove
+// it, and only for other admins.
+router.patch("/users/:id/restricted", async (req, res, next) => {
+  try {
+    const grant = req.body?.restricted_access === true;
+    const { rows: me } = await pool.query("SELECT restricted_access FROM users WHERE id = $1", [req.user.id]);
+    if (!me[0]?.restricted_access) return res.status(403).json({ error: "Only an admin with restricted access can change this." });
+    if (Number(req.params.id) === req.user.id) return res.status(400).json({ error: "You can't change your own restricted access." });
+    const { rows } = await pool.query(
+      `UPDATE users SET restricted_access = $2, updated_at = now() WHERE id = $1 AND role = 'admin'
+       RETURNING id, name, restricted_access`,
+      [req.params.id, grant]
+    );
+    if (!rows[0]) return res.status(404).json({ error: "Admin user not found." });
+    await logAudit({ actorId: req.user.id, action: grant ? "user.restricted_granted" : "user.restricted_removed", objectType: "user", objectId: rows[0].id, req });
+    res.json({ user: rows[0] });
   } catch (err) {
     next(err);
   }

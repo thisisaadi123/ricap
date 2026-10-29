@@ -8,14 +8,21 @@ import { GhostButton } from "./ui.jsx";
 export function navItemsFor(role) {
   if (role === "admin") return [
     { id: "overview", label: "Overview" },
+    { id: "partners", label: "Partners" },
+    { id: "investors", label: "Investors" },
+    { id: "kyc", label: "KYC" },
+    { id: "templates", label: "Templates" },
+    { id: "import", label: "Bigin import" },
     { id: "users", label: "Users" },
     { id: "audit", label: "Audit log" },
   ];
   if (role === "partner") return [
-    { id: "dashboard", label: "Dashboard" },
+    { id: "investors", label: "My investors" },
   ];
   return [
     { id: "home", label: "Home" },
+    { id: "kyc", label: "KYC" },
+    { id: "documents", label: "Documents" },
   ];
 }
 
@@ -26,15 +33,15 @@ export function NavBar({ view, setView, user, onLogout }) {
   return (
     <div style={{ borderBottom: `1px solid ${BRAND.line}`, background: "#fff", position: "sticky", top: 0, zIndex: 20 }}>
       <div style={{ maxWidth: 1160, margin: "0 auto", padding: "0 24px", display: "flex", alignItems: "center", justifyContent: "space-between", minHeight: 62, gap: 16, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 28, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap" }}>
           <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: 16, color: BRAND.ink, display: "flex", alignItems: "center", gap: 10 }}>
             <img src="/riv-logo-full.png" alt="Retail Innovation Ventures" style={{ height: 26 }} />
             RICap
           </div>
-          <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
             {items.map((it) => (
               <button key={it.id} onClick={() => setView(it.id)} style={{
-                fontFamily: FONT, fontWeight: 600, fontSize: 13, padding: "8px 12px", borderRadius: 8,
+                fontFamily: FONT, fontWeight: 600, fontSize: 13, padding: "8px 10px", borderRadius: 8,
                 border: "none", cursor: "pointer",
                 background: view === it.id ? BRAND.cream : "transparent",
                 color: view === it.id ? BRAND.coral : "#7A756F",
@@ -49,7 +56,7 @@ export function NavBar({ view, setView, user, onLogout }) {
             {user.name}
             <div style={{ fontSize: 11, color: "#9B958F" }}>{ROLE_LABELS[user.role]}</div>
           </div>
-          <GhostButton onClick={onLogout} icon={LogOut} style={{ padding: "8px 12px" }}>Log out</GhostButton>
+          <GhostButton onClick={onLogout} icon={LogOut} style={{ padding: "8px 10px" }}>Log out</GhostButton>
         </div>
       </div>
     </div>

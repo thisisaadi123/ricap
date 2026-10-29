@@ -174,6 +174,8 @@ export function GlobalStyle() {
     <style>{`
       @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
       * { box-sizing: border-box; }
+      body { font-family: ${FONT}; color: ${BRAND.ink}; }
+      button, input, select, textarea { font-family: inherit; }
       button:focus-visible { outline: 2px solid ${BRAND.coral}; outline-offset: 2px; }
       input:focus, select:focus, textarea:focus { outline: 2px solid ${BRAND.coral}; outline-offset: 0; }
       .ricap-spin { animation: ricap-spin 0.9s linear infinite; }

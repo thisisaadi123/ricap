@@ -76,13 +76,21 @@ Tables follow PRD Section 8. Each milestone adds its own migration file.
 | Milestone | Tables |
 |---|---|
 | M0 Foundation | `users`, `user_invites`, `password_resets`, `login_codes`, `audit_log` |
-| M1 People | `venture_partners`, `investors`, `investor_contacts`, `investor_credit` (protection window), `bigin_imports` |
-| M2 KYC & documents | `kyc_files`, `kyc_items`, `documents`, `document_templates`, `signature_envelopes` |
+| M1 People | `venture_partners`, `investors` (partner credit window lives on the investor: `partner_id`, `credit_expires_at`), `investor_contacts`, `bigin_imports`; `users.restricted_access` |
+| M2 KYC & documents | `kyc_checklist_templates`, `kyc_files`, `kyc_items`, `kyc_ubos`, `documents`, `document_templates` |
 | M3 HoldCo + Fund soft commitments | `vehicles`, `vehicle_minimums`, `commitments`, `commitment_events` |
 | M4 IB deals | `ib_deals`, `deal_access_log`, `fee_invoices` |
 | M5 Money & payouts | `money_movements`, `partner_payouts`, `outbound_investments`, `bank_account_changes` |
 | M6 Investor portal | `investor_updates`, `update_deliveries`, `notifications`, `interest_requests`, `vehicle_visibility` |
 | M8 Retail intelligence | `retail_tags`, `entity_tags`, `retail_insights`, `enrichment_runs` |
+
+### M1–M2 notes
+
+- **Restricted access.** KYC files and documents, and investor net worth / inclination, are visible only to admins with `restricted_access` (PRD 8.2, 9.1). An admin who has it can grant it to other admins on the Users page.
+- **Partner privacy.** Partners see only investors they registered. Duplicate matches are shown to admins only; a partner whose submission is a duplicate sees "Not accepted".
+- **Bigin import.** CSV upload with a preview step. Column names are matched against the aliases in `backend/routes/imports.js`; add the real export's headers there if any aren't recognised.
+- **File storage.** `backend/lib/storage.js` has two drivers: a local folder (`backend/storage`, development only) and Supabase Storage via its S3 API (same approach as RISE), chosen automatically when the `SUPABASE_S3_*` variables are set. Downloads always go through a 60-second link, and every open of a KYC or restricted document is written to the audit log.
+- **Still manual in v1.** Signature status is tracked by hand on each document until Zoho Sign is connected (needs RIV's Zoho Sign API credentials). Sanctions / PEP screening results are entered by hand (PRD 3). Emails go through Resend once configured; until then they're printed in the backend terminal.
 
 ## 6. Pages by role
 

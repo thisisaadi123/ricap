@@ -12,7 +12,13 @@ import { ForgotPasswordView, ResetPasswordView } from "./views/auth/PasswordRese
 import { AdminOverview } from "./views/admin/AdminOverview.jsx";
 import { AdminUsersView } from "./views/admin/AdminUsersView.jsx";
 import { AuditLogView } from "./views/admin/AuditLogView.jsx";
-import { ComingSoon } from "./views/ComingSoon.jsx";
+import { AdminPartnersView } from "./views/admin/AdminPartnersView.jsx";
+import { AdminInvestorsView } from "./views/admin/AdminInvestorsView.jsx";
+import { AdminKycView } from "./views/admin/AdminKycView.jsx";
+import { AdminTemplatesView } from "./views/admin/AdminTemplatesView.jsx";
+import { AdminImportView } from "./views/admin/AdminImportView.jsx";
+import { PartnerInvestorsView } from "./views/partner/PartnerInvestorsView.jsx";
+import { InvestorDocumentsView, InvestorHome, InvestorKycView } from "./views/investor/InvestorViews.jsx";
 
 // Signed-out screens reached by link (from invite / reset emails) or from
 // the sign-in page.
@@ -34,6 +40,8 @@ export default function RicapApp() {
   const [view, setView] = useState(() => (getStoredUser() ? defaultViewFor(getStoredUser().role) : null));
   const [authRoute, setAuthRoute] = useState(readAuthRoute);
   const [notice, setNotice] = useState("");
+  // Admin KYC tab: which KYC file is open (null shows the queue).
+  const [kycFileId, setKycFileId] = useState(null);
   useDisableNumberInputScroll();
 
   function goTo(screen, message = "") {
@@ -84,20 +92,24 @@ export default function RicapApp() {
   return (
     <div style={{ minHeight: "100vh", background: BRAND.cream }}>
       <GlobalStyle />
-      <NavBar view={view} setView={setView} user={user} onLogout={() => logout()} />
+      <NavBar view={view} setView={(v) => { setView(v); if (v === "kyc") setKycFileId(null); }} user={user} onLogout={() => logout()} />
       <div style={{ maxWidth: 1160, margin: "0 auto", padding: "28px 24px 60px" }}>
         <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: 20, color: BRAND.ink, marginBottom: 18 }}>{title}</div>
 
         {user.role === "admin" && view === "overview" && <AdminOverview onNavigate={setView} />}
+        {user.role === "admin" && view === "partners" && <AdminPartnersView />}
+        {user.role === "admin" && view === "investors" && <AdminInvestorsView onOpenKyc={(id) => { setKycFileId(id); setView("kyc"); }} />}
+        {user.role === "admin" && view === "kyc" && <AdminKycView openFileId={kycFileId} setOpenFileId={setKycFileId} />}
+        {user.role === "admin" && view === "templates" && <AdminTemplatesView />}
+        {user.role === "admin" && view === "import" && <AdminImportView />}
         {user.role === "admin" && view === "users" && <AdminUsersView currentUser={user} />}
         {user.role === "admin" && view === "audit" && <AuditLogView />}
 
-        {user.role === "partner" && view === "dashboard" && (
-          <ComingSoon title={`Welcome, ${user.name}`} text="Your investors, their progress and your payouts will appear here. Registering investors opens in the next release." />
-        )}
-        {user.role === "investor" && view === "home" && (
-          <ComingSoon title={`Welcome, ${user.name}`} text="Your holdings, documents to sign and updates from RIV will appear here." />
-        )}
+        {user.role === "partner" && view === "investors" && <PartnerInvestorsView />}
+
+        {user.role === "investor" && view === "home" && <InvestorHome user={user} onNavigate={setView} />}
+        {user.role === "investor" && view === "kyc" && <InvestorKycView />}
+        {user.role === "investor" && view === "documents" && <InvestorDocumentsView />}
       </div>
     </div>
   );

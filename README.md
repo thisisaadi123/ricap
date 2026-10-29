@@ -49,6 +49,10 @@ Demo accounts (local only; `seed.js` refuses to run in production):
 
 Sign-in has two steps: password, then a 6-digit code sent by email. Until `RESEND_API_KEY` and `EMAIL_FROM` are set, the code (and any invite or reset link) is printed in the **backend terminal** instead of emailed.
 
+The seed also creates an onboarded venture partner record for the demo partner, and an approved investor (Demo Family Office LLC) whose contact is the demo investor login. The demo admin has restricted access, so it can see KYC.
+
+Uploaded documents are stored in `backend/storage/` (git-ignored) until the Supabase Storage variables in `.env` are set.
+
 ## Schema changes
 
 Add a new numbered file in `backend/migrations/` (e.g. `002_people.sql`). It's applied once, in order, the next time the backend starts. Never edit a migration that has already run anywhere.
