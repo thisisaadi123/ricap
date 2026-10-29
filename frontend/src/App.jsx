@@ -1,0 +1,104 @@
+// RICap Portal: Retail Innovation Capital (PRD v1.1). Root component:
+// signed-out screens (sign-in, invite, password reset) and the signed-in
+// shell for each role. Views live in ./views; shared UI in ./components.
+import React, { useEffect, useState } from "react";
+import { api, clearSession, getStoredUser, setSessionExpiredHandler } from "./api.js";
+import { BRAND, FONT } from "./brand.js";
+import { GlobalStyle, useDisableNumberInputScroll } from "./components/ui.jsx";
+import { NavBar, navItemsFor } from "./components/NavBar.jsx";
+import { LoginView } from "./views/auth/LoginView.jsx";
+import { AcceptInviteView } from "./views/auth/AcceptInviteView.jsx";
+import { ForgotPasswordView, ResetPasswordView } from "./views/auth/PasswordResetViews.jsx";
+import { AdminOverview } from "./views/admin/AdminOverview.jsx";
+import { AdminUsersView } from "./views/admin/AdminUsersView.jsx";
+import { AuditLogView } from "./views/admin/AuditLogView.jsx";
+import { ComingSoon } from "./views/ComingSoon.jsx";
+
+// Signed-out screens reached by link (from invite / reset emails) or from
+// the sign-in page.
+function readAuthRoute() {
+  const { pathname, search } = window.location;
+  const token = new URLSearchParams(search).get("token") || "";
+  if (pathname === "/accept-invite") return { screen: "invite", token };
+  if (pathname === "/reset-password") return { screen: "reset", token };
+  if (pathname === "/forgot-password") return { screen: "forgot" };
+  return { screen: "login" };
+}
+
+function defaultViewFor(role) {
+  return navItemsFor(role)[0].id;
+}
+
+export default function RicapApp() {
+  const [user, setUser] = useState(() => getStoredUser());
+  const [view, setView] = useState(() => (getStoredUser() ? defaultViewFor(getStoredUser().role) : null));
+  const [authRoute, setAuthRoute] = useState(readAuthRoute);
+  const [notice, setNotice] = useState("");
+  useDisableNumberInputScroll();
+
+  function goTo(screen, message = "") {
+    const path = { login: "/", forgot: "/forgot-password" }[screen] || "/";
+    window.history.replaceState(null, "", path);
+    setAuthRoute({ screen });
+    setNotice(message);
+  }
+
+  function logout(message = "") {
+    clearSession();
+    setUser(null);
+    setView(null);
+    goTo("login", message);
+  }
+
+  useEffect(() => {
+    setSessionExpiredHandler(() => logout("Your session has ended. Please sign in again."));
+    // A stored session may have expired or the account may have been
+    // suspended since the last visit; check with the server.
+    if (getStoredUser()) api.me().catch(() => logout());
+  }, []);
+
+  const signedOutScreen = (() => {
+    if (authRoute.screen === "invite") {
+      return <AcceptInviteView token={authRoute.token} onDone={(msg) => goTo("login", msg)} onGoToLogin={() => goTo("login")} />;
+    }
+    if (authRoute.screen === "reset") {
+      return <ResetPasswordView token={authRoute.token} onDone={(msg) => goTo("login", msg)} onGoToLogin={() => goTo("login")} />;
+    }
+    if (authRoute.screen === "forgot") return <ForgotPasswordView onGoToLogin={() => goTo("login")} />;
+    if (!user) {
+      return (
+        <LoginView
+          notice={notice}
+          onForgot={() => goTo("forgot")}
+          onAuthed={(u) => { setNotice(""); setUser(u); setView(defaultViewFor(u.role)); }}
+        />
+      );
+    }
+    return null;
+  })();
+
+  if (signedOutScreen) return <><GlobalStyle />{signedOutScreen}</>;
+
+  const title = navItemsFor(user.role).find((it) => it.id === view)?.label;
+
+  return (
+    <div style={{ minHeight: "100vh", background: BRAND.cream }}>
+      <GlobalStyle />
+      <NavBar view={view} setView={setView} user={user} onLogout={() => logout()} />
+      <div style={{ maxWidth: 1160, margin: "0 auto", padding: "28px 24px 60px" }}>
+        <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: 20, color: BRAND.ink, marginBottom: 18 }}>{title}</div>
+
+        {user.role === "admin" && view === "overview" && <AdminOverview onNavigate={setView} />}
+        {user.role === "admin" && view === "users" && <AdminUsersView currentUser={user} />}
+        {user.role === "admin" && view === "audit" && <AuditLogView />}
+
+        {user.role === "partner" && view === "dashboard" && (
+          <ComingSoon title={`Welcome, ${user.name}`} text="Your investors, their progress and your payouts will appear here. Registering investors opens in the next release." />
+        )}
+        {user.role === "investor" && view === "home" && (
+          <ComingSoon title={`Welcome, ${user.name}`} text="Your holdings, documents to sign and updates from RIV will appear here." />
+        )}
+      </div>
+    </div>
+  );
+}
