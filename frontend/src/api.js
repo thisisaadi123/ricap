@@ -168,6 +168,39 @@ export const api = {
   softConfirmByEmail: (id, file) => request(`/admin/commitments/${id}/soft-confirm`, { method: "POST", form: formOf(file) }),
   dataRoom: (id, action) => request(`/admin/commitments/${id}/data-room/${action}`, { method: "POST" }),
 
+  // admin: investor updates (M6)
+  listUpdates: () => request("/admin/updates"),
+  updateTargets: () => request("/admin/updates/targets"),
+  updateAudience: (vehicle_id) => request(`/admin/updates/audience${query({ vehicle_id })}`),
+  getUpdate: (id) => request(`/admin/updates/${id}`),
+  createUpdate: (body) => request("/admin/updates", { method: "POST", body }),
+  editUpdate: (id, body) => request(`/admin/updates/${id}`, { method: "PATCH", body }),
+  publishUpdate: (id) => request(`/admin/updates/${id}/publish`, { method: "POST" }),
+  withdrawUpdate: (id, reason) => request(`/admin/updates/${id}/withdraw`, { method: "POST", body: { reason } }),
+  investorRecord: (id, as_of) => request(`/admin/updates/investor/${id}${query({ as_of })}`),
+
+  // alerts, any role (M6)
+  notifications: () => request("/notifications"),
+  unreadNotifications: () => request("/notifications/unread"),
+  readNotification: (id) => request(`/notifications/${id}/read`, { method: "POST" }),
+  readAllNotifications: () => request("/notifications/read-all", { method: "POST" }),
+
+  // admin: money (M5)
+  listPayouts: () => request("/admin/money/payouts"),
+  approvePayout: (id, over_cash_reason) => request(`/admin/money/payouts/${id}/approve`, { method: "POST", body: { over_cash_reason } }),
+  payPayout: (id, file, fields) => request(`/admin/money/payouts/${id}/pay`, { method: "POST", form: formOf(file, fields) }),
+  cancelPayout: (id, reason) => request(`/admin/money/payouts/${id}/cancel`, { method: "POST", body: { reason } }),
+  listMovements: (params = {}) => request(`/admin/money/movements${query(params)}`),
+  reconcileMovement: (id) => request(`/admin/money/movements/${id}/reconcile`, { method: "POST" }),
+  voidMovement: (id, reason) => request(`/admin/money/movements/${id}/void`, { method: "POST", body: { reason } }),
+  listOutbound: () => request("/admin/money/outbound"),
+  createOutbound: (body) => request("/admin/money/outbound", { method: "POST", body }),
+  approveOutbound: (id) => request(`/admin/money/outbound/${id}/approve`, { method: "POST" }),
+  fundOutbound: (id, file, fields) => request(`/admin/money/outbound/${id}/fund`, { method: "POST", form: formOf(file, fields) }),
+  setOutboundStatus: (id, status, reason) => request(`/admin/money/outbound/${id}/status`, { method: "POST", body: { status, reason } }),
+  getMoneySettings: () => request("/admin/money/settings"),
+  updateMoneySettings: (body) => request("/admin/money/settings", { method: "PATCH", body }),
+
   // admin: IB deals (M4)
   listDeals: () => request("/admin/deals"),
   getDeal: (id) => request(`/admin/deals/${id}`),
@@ -185,6 +218,8 @@ export const api = {
   partnerOpportunities: () => request("/partner/opportunities"),
   partnerCommitments: () => request("/partner/commitments"),
   partnerPropose: (body) => request("/partner/commitments", { method: "POST", body }),
+  partnerPayouts: () => request("/partner/payouts"),
+  partnerUpdates: () => request("/partner/updates"),
   partnerInvestors: () => request("/partner/investors"),
   partnerAddInvestor: (body) => request("/partner/investors", { method: "POST", body }),
 
@@ -199,5 +234,10 @@ export const api = {
   investorCommitments: () => request("/investor/commitments"),
   investorCommitment: (id) => request(`/investor/commitments/${id}`),
   investorConfirmSoft: (id) => request(`/investor/commitments/${id}/confirm-soft`, { method: "POST" }),
+  investorUpdates: () => request("/investor/updates"),
+  investorReadUpdate: (id) => request(`/investor/updates/${id}/read`, { method: "POST" }),
+  investorStatement: (as_of) => request(`/investor/statement${query({ as_of })}`),
+  investorProfile: () => request("/investor/profile"),
+  investorSaveProfile: (body) => request("/investor/profile", { method: "PATCH", body }),
   investorCommitmentUpload: (id, file, kind) => request(`/investor/commitments/${id}/upload`, { method: "POST", form: formOf(file, { kind }) }),
 };

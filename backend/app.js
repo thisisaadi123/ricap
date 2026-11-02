@@ -15,6 +15,10 @@ const investorPortalRoutes = require("./routes/investorPortal.js");
 const vehicleRoutes = require("./routes/vehicles.js");
 const commitmentRoutes = require("./routes/commitments.js");
 const dealRoutes = require("./routes/deals.js");
+const moneyRoutes = require("./routes/money.js");
+const updateRoutes = require("./routes/updates.js");
+const notificationRoutes = require("./routes/notifications.js");
+const { flushEmailsAfterWrites } = require("./lib/notify.js");
 
 const app = express();
 app.disable("x-powered-by");
@@ -34,6 +38,8 @@ app.use((req, res, next) => (req.path.startsWith("/api/admin/import") ? next() :
 // production (Netlify redirect), so no CORS is needed. Keep it that way:
 // leaving CORS off means other sites can't call this API from a browser.
 
+app.use(flushEmailsAfterWrites);
+
 app.get("/api/health", (req, res) => res.json({ ok: true }));
 app.use("/api/auth", authRoutes);
 app.use("/api/admin/partners", partnerRoutes);
@@ -44,6 +50,9 @@ app.use("/api/admin/templates", templateRoutes);
 app.use("/api/admin/vehicles", vehicleRoutes.router);
 app.use("/api/admin/commitments", commitmentRoutes);
 app.use("/api/admin/deals", dealRoutes);
+app.use("/api/admin/money", moneyRoutes);
+app.use("/api/admin/updates", updateRoutes);
+app.use("/api/notifications", notificationRoutes);
 app.use("/api/admin/documents", documentRoutes.adminRouter);
 app.use("/api/admin", adminRoutes);
 app.use("/api/documents", documentRoutes.linkRouter);

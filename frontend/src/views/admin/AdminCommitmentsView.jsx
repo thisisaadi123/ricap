@@ -311,6 +311,7 @@ export function CommitmentWorkspace({ commitmentId, onBack }) {
         </div>
         <div style={{ fontSize: 12.5, color: MUTED, margin: "6px 0 14px" }}>
           Indicative {usd(c.indicative_amount)}{c.committed_amount ? ` · committed ${usd(c.committed_amount)}` : ""} · {c.source}{c.partner_name ? ` · credited to ${c.partner_name}` : ""} · created via {c.created_via} {dateStr(c.created_at)}
+          {data.payout && <div>Partner payout: {usd(data.payout.total)} incl. VAT ({Number(data.payout.pct)}% of {usd(data.payout.basis_amount)}) · {data.payout.status}</div>}
           {c.exit_reason && <div style={{ color: BRAND.coralDark }}>{c.status}: {c.exit_reason}</div>}
         </div>
         <StageProgress flow={c.flow} stages={data.stages} current={c.stage} dimmed={c.status !== "Active"} />

@@ -4,6 +4,8 @@
 const { httpError } = require("./http.js");
 const { logAudit } = require("./audit.js");
 
+const { notifyInvestor, notifyPartner, notifyAdmins } = require("./notify.js");
+
 const FLOWS = {
   HoldCo: ["Intent", "Eligible", "Offer documents issued", "Signed by investor", "Fully executed", "Funds due", "Funds received", "Shares issued", "Active shareholder"],
   Fund: ["Intent", "Eligible", "Soft commitment", "Soft commitment confirmed", "Awaiting Fund launch"],
@@ -186,7 +188,33 @@ async function advance(db, c, { toStage, body = {}, actorId, req, note = null })
   const { rows } = await db.query(`UPDATE commitments SET ${sets.join(", ")} WHERE id = $1 RETURNING *`, params);
   await recordEvent(db, c, { toStage, note, actorId });
   await logAudit({ actorId, action: "commitment.stage_changed", objectType: "commitment", objectId: c.id, details: { from: c.stage, to: toStage }, req }, db);
+  await require("./payouts.js").refreshPayout(db, c.id, { actorId, req });
+  await alertStageChange(db, c, toStage);
   return rows[0];
+}
+
+// Stages where the investor has something to do: these also get an email.
+// Keep bank details out; they're only ever shown in the portal (PRD 7).
+const INVESTOR_ACTIONS = {
+  "Offer documents issued": "Your offer documents are ready. Please sign in and sign the Subscription Agreement and Shareholders' Agreement.",
+  "Funds due": "Your payment instructions are ready. Please sign in to see the amount, due date and bank details.",
+  "Soft commitment": "RIV has recorded your soft commitment. Please sign in to confirm it.",
+  "Definitive documents signed": "The definitive documents are signed. Please pay the startup directly as agreed, then upload your payment confirmation.",
+};
+// The investor just did this themselves, or there's nothing to tell them yet.
+const NO_INVESTOR_ALERT = ["Eligible", "Soft commitment confirmed"];
+
+async function alertStageChange(db, c, toStage) {
+  const action = INVESTOR_ACTIONS[toStage];
+  if (!NO_INVESTOR_ALERT.includes(toStage)) {
+    await notifyInvestor(db, c.investor_id, {
+      type: "stage", title: `${c.vehicle_name}: ${toStage}`, body: action || investorNextAction({ ...c, stage: toStage }),
+      linkView: "investments", linkId: c.id, email: Boolean(action), emailSubject: `RICap: action needed on ${c.vehicle_name}`,
+    });
+  }
+  await notifyPartner(db, c.partner_id, {
+    type: "stage_partner", title: `${c.investor_name}: ${toStage}`, body: c.vehicle_name, linkView: "commitments", linkId: c.id,
+  });
 }
 
 // Re-runs eligibility; an Intent that now passes moves to Eligible.
@@ -232,6 +260,13 @@ async function createCommitment(db, { investorId, vehicleId, amount, createdVia,
   );
   await logAudit({ actorId, action: "commitment.created", objectType: "commitment", objectId: created.id, details: { investor: investor.legal_name, vehicle: vehicle.name, amount, via: createdVia }, req }, db);
   await recheck(db, created.id, { actorId, req });
+  await require("./payouts.js").refreshPayout(db, created.id, { actorId, req });
+  if (createdVia !== "Admin") {
+    await notifyAdmins(db, {
+      type: "interest", title: `${investor.display_name || investor.legal_name} is interested in ${vehicle.name}`,
+      body: `USD ${Number(amount).toLocaleString("en-US")}, via ${createdVia === "Partner" ? "their venture partner" : "the investor portal"}.`, linkView: "commitments", linkId: created.id,
+    });
+  }
   return created.id;
 }
 

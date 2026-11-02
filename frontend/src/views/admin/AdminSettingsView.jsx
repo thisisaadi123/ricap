@@ -70,16 +70,35 @@ function StageEvidenceView() {
   );
 }
 
+function PayoutRulesView() {
+  const [value, setValue] = useState(null);
+  const [error, setError] = useState("");
+  const [success, showSuccess] = useSuccessMessage();
+  useEffect(() => { api.getMoneySettings().then((r) => setValue(r.payout_second_admin_above)).catch((e) => setError(e.message)); }, []);
+  if (value === null) return error ? <ErrorBanner text={error} /> : <Spinner />;
+  return (
+    <Card style={{ padding: 18, maxWidth: 520 }}>
+      <ErrorBanner text={error} />
+      <SuccessBanner text={success} />
+      <Field label="Second admin needed for payouts above (USD)" hint="Total including VAT. Every payout needs one admin; above this, two different admins (PRD 9.2).">
+        <input type="number" min={0} style={inputStyle} value={value} onChange={(e) => setValue(e.target.value)} />
+      </Field>
+      <GhostButton onClick={async () => { setError(""); try { await api.updateMoneySettings({ payout_second_admin_above: value }); showSuccess("Saved."); } catch (e) { setError(e.message); } }}>Save</GhostButton>
+    </Card>
+  );
+}
+
 export function AdminSettingsView({ currentUser }) {
   const [tab, setTab] = useState("templates");
   return (
     <div>
       <Tabs value={tab} onChange={setTab} tabs={[
-        { id: "templates", label: "KYC & agreement templates" }, { id: "evidence", label: "Stage evidence" },
+        { id: "templates", label: "KYC & agreement templates" }, { id: "evidence", label: "Stage evidence" }, { id: "payouts", label: "Payout rules" },
         { id: "import", label: "Bigin import" }, { id: "users", label: "Users" }, { id: "audit", label: "Audit log" },
       ]} />
       {tab === "templates" && <AdminTemplatesView />}
       {tab === "evidence" && <StageEvidenceView />}
+      {tab === "payouts" && <PayoutRulesView />}
       {tab === "import" && <AdminImportView />}
       {tab === "users" && <AdminUsersView currentUser={currentUser} />}
       {tab === "audit" && <AuditLogView />}

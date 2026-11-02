@@ -27,6 +27,9 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: wantsSsl() ? { rejectUnauthorized: false } : false,
 });
+// An idle connection can drop (database restart, network, pooler timeout).
+// The pool replaces it; without this listener the error would end the process.
+pool.on("error", (err) => console.error(`Database connection dropped: ${err.message}`));
 
 const USER_ROLES = ["admin", "partner", "investor"];
 const USER_STATUSES = ["invited", "active", "suspended"];

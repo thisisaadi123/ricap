@@ -12,6 +12,8 @@ const { receiveFile, saveDocument } = require("../lib/documents.js");
 const { logAudit } = require("../lib/audit.js");
 const { visibleSql, isVisible } = require("../lib/visibility.js");
 const E = require("../lib/commitments.js");
+const { notifyAdmins } = require("../lib/notify.js");
+const { statementFor } = require("../lib/statements.js");
 
 const router = Router();
 router.use(requireAuth, requireRole("investor"));
@@ -92,6 +94,7 @@ router.post("/kyc/submit", asyncRoute(async (req, res) => {
       [f.id]
     );
     await logAudit({ actorId: req.user.id, action: "kyc.submitted", objectType: "investor", objectId: inv.id, details: { kyc_file: f.id }, req }, client);
+    await notifyAdmins(client, { type: "kyc_admin", title: `KYC to review: ${inv.display_name || inv.legal_name}`, linkView: "kyc", linkId: f.id });
     return updated[0];
   });
   res.json({ file });
@@ -240,9 +243,88 @@ router.post("/commitments/:id/upload", receiveFile, asyncRoute(async (req, res) 
       linkedType: "commitment", linkedId: id, confidentiality: "Shareable with investor", source: "Investor upload", uploadedBy: req.user.id,
     });
     await logAudit({ actorId: req.user.id, action: "commitment.investor_upload", objectType: "commitment", objectId: id, details: { kind }, req }, client);
+    await notifyAdmins(client, { type: "investor_upload", title: `${c.investor_name} uploaded a ${kind.toLowerCase()}`, body: c.vehicle_name, linkView: "commitments", linkId: id });
     return { id: doc.id, filename: doc.filename, doc_type: doc.doc_type, uploaded_at: doc.uploaded_at };
   });
   res.status(201).json({ document });
+}));
+
+// ---------- M6: updates, statement, profile (PRD 6.14) ----------
+router.get("/updates", asyncRoute(async (req, res) => {
+  const inv = await investorForUser(req.user.id);
+  const { rows } = await pool.query(
+    `SELECT u.id, u.type, u.title, u.body, u.published_at, veh.name AS vehicle_name, d.first_read_at,
+            coalesce((SELECT json_agg(json_build_object('id', doc.id, 'filename', doc.filename) ORDER BY doc.uploaded_at)
+                      FROM documents doc WHERE doc.linked_type = 'update' AND doc.linked_id = u.id AND doc.voided_at IS NULL), '[]') AS attachments
+     FROM update_deliveries d
+     JOIN investor_updates u ON u.id = d.update_id
+     JOIN vehicles veh ON veh.id = u.vehicle_id
+     WHERE d.investor_id = $1 AND u.status = 'Published'
+     ORDER BY u.published_at DESC`,
+    [inv.id]
+  );
+  res.json({ updates: rows });
+}));
+
+router.post("/updates/:id/read", asyncRoute(async (req, res) => {
+  const inv = await investorForUser(req.user.id);
+  await pool.query(
+    "UPDATE update_deliveries SET first_read_at = now(), first_read_by = $3 WHERE update_id = $1 AND investor_id = $2 AND first_read_at IS NULL",
+    [v.id(req.params.id, "update"), inv.id, req.user.id]
+  );
+  res.json({ ok: true });
+}));
+
+router.get("/statement", asyncRoute(async (req, res) => {
+  const inv = await investorForUser(req.user.id);
+  const asOf = v.date(req.query.as_of, "As-of date") || new Date().toISOString().slice(0, 10);
+  res.json({ statement: await statementFor(pool, inv.id, asOf) });
+}));
+
+async function readProfile(userId) {
+  const inv = await investorForUser(userId);
+  const { rows } = await pool.query("SELECT name, email, phone FROM investor_contacts WHERE id = $1", [inv.contact_id]);
+  return { legal_name: inv.legal_name, country: inv.country, kind: inv.kind, contact: rows[0] };
+}
+
+router.get("/profile", asyncRoute(async (req, res) => {
+  res.json({ profile: await readProfile(req.user.id) });
+}));
+
+// Contact details change straight away. Legal details reopen compliance
+// review (PRD 6.14): a Submitted or Cleared KYC file goes back to the investor
+// and RIV is alerted.
+router.patch("/profile", asyncRoute(async (req, res) => {
+  const inv = await investorForUser(req.user.id);
+  const b = req.body || {};
+  const name = v.text(b.name, "Your name", { required: true, max: 200 });
+  const phone = v.text(b.phone, "Phone", { max: 50 });
+  const legalName = v.text(b.legal_name, "Legal name", { required: true, max: 300 });
+  const country = v.text(b.country, "Country", { max: 100 });
+  const legalChanged = legalName !== inv.legal_name || (country || null) !== (inv.country || null);
+  let kycReopened = false;
+  await inTransaction(pool, async (client) => {
+    await client.query("UPDATE investor_contacts SET name = $2, phone = $3 WHERE id = $1", [inv.contact_id, name, phone]);
+    await client.query("UPDATE users SET name = $2 WHERE id = $1", [req.user.id, name]);
+    await logAudit({ actorId: req.user.id, action: "investor.contact_updated", objectType: "investor", objectId: inv.id, details: { contact: name }, req }, client);
+    if (!legalChanged) return;
+    await client.query("UPDATE investors SET legal_name = $2, country = $3, updated_at = now() WHERE id = $1", [inv.id, legalName, country]);
+    const { rows: reopened } = await client.query(
+      `UPDATE kyc_files SET status = 'Information requested', decision_note = $2, updated_at = now()
+       WHERE investor_id = $1 AND is_current AND status IN ('Submitted', 'Cleared') RETURNING id`,
+      [inv.id, "You changed your legal details. RIV needs to review them again. Please check your documents match and resubmit."]
+    );
+    kycReopened = Boolean(reopened[0]);
+    await logAudit({
+      actorId: req.user.id, action: "investor.legal_details_changed", objectType: "investor", objectId: inv.id,
+      details: { from: { legal_name: inv.legal_name, country: inv.country }, to: { legal_name: legalName, country }, kyc_reopened: kycReopened }, req,
+    }, client);
+    await notifyAdmins(client, {
+      type: "kyc_admin", title: `Legal details changed: ${legalName}`, body: kycReopened ? `Was ${inv.legal_name}. KYC reopened for review.` : `Was ${inv.legal_name}.`,
+      linkView: "kyc", linkId: reopened[0]?.id ?? null,
+    });
+  });
+  res.json({ profile: await readProfile(req.user.id), kyc_reopened: kycReopened });
 }));
 
 module.exports = router;

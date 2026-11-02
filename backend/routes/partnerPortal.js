@@ -8,6 +8,7 @@ const { asyncRoute, httpError, inTransaction } = require("../lib/http.js");
 const { partnerForUser } = require("../lib/identity.js");
 const { KYC_STATUS_SQL, readInvestor, readContact } = require("../lib/investorFields.js");
 const { logAudit } = require("../lib/audit.js");
+const { notifyAdmins } = require("../lib/notify.js");
 const v = require("../lib/validate.js");
 const { visibleSql, isVisible } = require("../lib/visibility.js");
 const E = require("../lib/commitments.js");
@@ -70,6 +71,7 @@ router.post("/investors", asyncRoute(async (req, res) => {
       [rows[0].id, contact.name, contact.email, contact.phone, contact.role]
     );
     await logAudit({ actorId: req.user.id, action: "investor.submitted", objectType: "investor", objectId: rows[0].id, details: { name: inv.legal_name, partner: p.full_name }, req }, client);
+    await notifyAdmins(client, { type: "investor_submitted", title: `New investor to review: ${inv.legal_name}`, body: `From ${p.full_name}.`, linkView: "investors" });
     return rows[0].id;
   });
   const { rows } = await pool.query(`${PARTNER_INVESTOR_SQL} AND i.id = $2`, [p.id, id]);
@@ -123,6 +125,49 @@ router.post("/commitments", asyncRoute(async (req, res) => {
   }));
   const c = await E.loadCommitment(pool, id);
   res.status(201).json({ commitment: { id: c.id, stage: c.stage, status: c.status, vehicle_name: c.vehicle_name } });
+}));
+
+// The partner's own payouts (PRD 6.9, 9.1): accruing estimates, earned,
+// paid. Accruing amounts are estimates that change with the commitment.
+router.get("/payouts", asyncRoute(async (req, res) => {
+  const p = await partnerForUser(req.user.id);
+  const { rows } = await pool.query(
+    `SELECT po.id, po.flow, po.status, po.basis_amount, po.pct, po.amount, po.vat_pct, po.vat_amount, po.total, po.earned_at, po.paid_at, po.payment_reference,
+            veh.name AS vehicle_name, coalesce(i.display_name, i.legal_name) AS investor_name
+     FROM partner_payouts po
+     JOIN vehicles veh ON veh.id = po.vehicle_id
+     JOIN commitments c ON c.id = po.commitment_id
+     JOIN investors i ON i.id = c.investor_id
+     WHERE po.partner_id = $1 AND po.status <> 'Cancelled'
+     ORDER BY po.updated_at DESC`,
+    [p.id]
+  );
+  const sum = (statuses) => rows.filter((r) => statuses.includes(r.status)).reduce((s, r) => s + Number(r.total), 0);
+  res.json({ payouts: rows, totals: { accruing: sum(["Accruing"]), earned: sum(["Earned", "Approved"]), paid: sum(["Paid"]) } });
+}));
+
+// Updates that went to this partner's investors (PRD 6.10): that one went
+// out and to whom; the contents only if RIV marked it shareable.
+router.get("/updates", asyncRoute(async (req, res) => {
+  const p = await partnerForUser(req.user.id);
+  const { rows } = await pool.query(
+    `SELECT u.id, u.type, u.published_at, u.shareable_with_partners, veh.name AS vehicle_name,
+            CASE WHEN u.shareable_with_partners THEN u.title END AS title,
+            CASE WHEN u.shareable_with_partners THEN u.body END AS body,
+            json_agg(coalesce(i.display_name, i.legal_name) ORDER BY coalesce(i.display_name, i.legal_name)) AS investors,
+            CASE WHEN u.shareable_with_partners THEN coalesce((
+              SELECT json_agg(json_build_object('id', d.id, 'filename', d.filename) ORDER BY d.uploaded_at)
+              FROM documents d WHERE d.linked_type = 'update' AND d.linked_id = u.id AND d.voided_at IS NULL), '[]') ELSE '[]' END AS attachments
+     FROM investor_updates u
+     JOIN vehicles veh ON veh.id = u.vehicle_id
+     JOIN update_deliveries del ON del.update_id = u.id
+     JOIN investors i ON i.id = del.investor_id AND i.partner_id = $1
+     WHERE u.status = 'Published'
+     GROUP BY u.id, veh.name
+     ORDER BY u.published_at DESC`,
+    [p.id]
+  );
+  res.json({ updates: rows });
 }));
 
 module.exports = router;

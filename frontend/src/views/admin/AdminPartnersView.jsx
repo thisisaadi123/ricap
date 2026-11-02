@@ -16,7 +16,7 @@ const EMPTY = {
   full_name: "", email: "", company: "", phone: "", linkedin_url: "", regions: "", sectors: "", tier: "",
   investor_reach_count: "", investor_network_types: [], retail_network: "", profile_summary: "",
   onboarding_stage: "New", agreement_link: "", agreement_signed_date: "",
-  payout_holdco_pct: 4, payout_fund_pct: 4, payout_ib_pct: 15, credit_window_months: 12, status: "Active", notes: "",
+  payout_holdco_pct: 4, payout_fund_pct: 4, payout_ib_pct: 15, payout_vat_pct: 5, credit_window_months: 12, status: "Active", notes: "",
 };
 
 function toForm(p) {
@@ -71,6 +71,7 @@ function PartnerForm({ form, setForm }) {
         <Field label="HoldCo payout %" hint="Of capital raised.">{input("payout_holdco_pct", { type: "number", step: "0.01", min: 0, max: 100 })}</Field>
         <Field label="Fund payout %" hint="Of capital raised.">{input("payout_fund_pct", { type: "number", step: "0.01", min: 0, max: 100 })}</Field>
         <Field label="IB payout %" hint="Of RIV's total IB fee.">{input("payout_ib_pct", { type: "number", step: "0.01", min: 0, max: 100 })}</Field>
+        <Field label="VAT on payouts %" hint="0 if not VAT-registered.">{input("payout_vat_pct", { type: "number", step: "0.01", min: 0, max: 100 })}</Field>
         <Field label="Credit window" hint="Months.">{input("credit_window_months", { type: "number", min: 0, max: 120 })}</Field>
       </Row>
       <Field label="Internal notes"><textarea style={{ ...inputStyle, minHeight: 50 }} value={form.notes ?? ""} onChange={(e) => set("notes")(e.target.value)} /></Field>

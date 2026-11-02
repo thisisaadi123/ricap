@@ -9,7 +9,7 @@ const v = require("../lib/validate.js");
 const C = require("../lib/constants.js");
 const { logAudit } = require("../lib/audit.js");
 const { receiveFile, saveDocument } = require("../lib/documents.js");
-const { emailInvestorUsers } = require("../lib/notify.js");
+const { notifyInvestor, notifyPartner } = require("../lib/notify.js");
 const { recheck } = require("../lib/commitments.js");
 
 const router = Router();
@@ -83,9 +83,11 @@ router.post("/open", asyncRoute(async (req, res) => {
       [created[0].id, inv[0].kind]
     );
     await logAudit({ actorId: req.user.id, action: current[0] ? "kyc.refresh_opened" : "kyc.opened", objectType: "investor", objectId: investorId, details: { kyc_file: created[0].id }, req }, client);
+    await notifyInvestor(client, investorId, {
+      type: "kyc", title: "Your RICap KYC checklist is ready", body: "RIV has opened your KYC checklist. Please sign in to RICap and upload the documents listed under KYC.", linkView: "kyc", email: true,
+    });
     return created[0];
   });
-  await emailInvestorUsers(investorId, "Your RICap KYC checklist is ready", "RIV has opened your KYC checklist. Please sign in to RICap and upload the documents listed under KYC.");
   res.status(201).json({ file });
 }));
 
@@ -280,15 +282,18 @@ router.post("/:id/decision", asyncRoute(async (req, res) => {
       const { rows: waiting } = await client.query("SELECT id FROM commitments WHERE investor_id = $1 AND stage = 'Intent' AND status = 'Active'", [f.investor_id]);
       for (const w of waiting) await recheck(client, w.id, { actorId: req.user.id, req });
     }
+    const messages = {
+      "Cleared": "Your KYC has been reviewed and cleared. Thank you.",
+      "Information requested": `RIV needs a little more for your KYC: ${note}\n\nPlease sign in and update your KYC checklist.`,
+      "Rejected": "RIV has completed its review of your KYC. Please contact RIV for details.",
+    };
+    await notifyInvestor(client, f.investor_id, { type: "kyc", title: `RICap KYC update: ${decision}`, body: messages[decision], linkView: "kyc", email: true });
+    if (decision === "Cleared") {
+      const { rows: inv } = await client.query("SELECT partner_id, coalesce(display_name, legal_name) AS name FROM investors WHERE id = $1", [f.investor_id]);
+      await notifyPartner(client, inv[0].partner_id, { type: "kyc_partner", title: `${inv[0].name}: KYC cleared`, linkView: "investors" });
+    }
     return rows[0];
   });
-
-  const messages = {
-    "Cleared": "Your KYC has been reviewed and cleared. Thank you.",
-    "Information requested": `RIV needs a little more for your KYC: ${note}\n\nPlease sign in and update your KYC checklist.`,
-    "Rejected": "RIV has completed its review of your KYC. Please contact RIV for details.",
-  };
-  await emailInvestorUsers(file.investor_id, `RICap KYC update: ${decision}`, messages[decision]);
   res.json({ file });
 }));
 

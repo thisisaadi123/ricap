@@ -10,6 +10,7 @@ const { logAudit } = require("../lib/audit.js");
 const { receiveFile, saveDocument } = require("../lib/documents.js");
 const D = require("../lib/deals.js");
 const E = require("../lib/commitments.js");
+const { refreshPayout } = require("../lib/payouts.js");
 
 const router = Router();
 router.use(requireAuth, requireAdmin);
@@ -194,6 +195,7 @@ router.post("/:id/close", asyncRoute(async (req, res) => {
       const why = `Deal ${status.toLowerCase()}: ${reason}`;
       await client.query("UPDATE commitments SET status = 'Withdrawn', exit_reason = $2, updated_at = now(), updated_by = $3 WHERE id = $1", [o.id, why, req.user.id]);
       await E.recordEvent(client, c, { toStatus: "Withdrawn", note: why, actorId: req.user.id });
+      await refreshPayout(client, o.id, { actorId: req.user.id, req });
     }
     await client.query("UPDATE ib_deals SET deal_status = $2, closed_at = now(), close_reason = $3, updated_at = now() WHERE vehicle_id = $1", [id, status, reason]);
     await client.query("UPDATE vehicles SET status = 'Closed', updated_at = now() WHERE id = $1", [id]);
@@ -278,6 +280,9 @@ router.post("/invoices/:invoiceId/payment", receiveFile, asyncRoute(async (req, 
     );
     const { rows } = await client.query("UPDATE fee_invoices SET status = 'Paid', paid_at = now() WHERE id = $1 RETURNING *", [iid]);
     await logAudit({ actorId: req.user.id, action: "invoice.paid", objectType: "vehicle", objectId: f.vehicle_id, details: { invoice: f.invoice_number, amount }, req }, client);
+    // Partners earn their IB payout once RIV receives the cash fee (VP-2).
+    const { rows: placed } = await client.query("SELECT id FROM commitments WHERE invoice_id = $1", [iid]);
+    for (const p of placed) await refreshPayout(client, p.id, { actorId: req.user.id, req });
     return rows[0];
   });
   res.json({ invoice });

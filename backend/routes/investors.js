@@ -7,6 +7,7 @@ const { asyncRoute, httpError, inTransaction } = require("../lib/http.js");
 const v = require("../lib/validate.js");
 const C = require("../lib/constants.js");
 const { logAudit } = require("../lib/audit.js");
+const { notifyPartner } = require("../lib/notify.js");
 const { findDuplicates } = require("../lib/duplicates.js");
 const { hasRestrictedAccess } = require("../lib/identity.js");
 const { KYC_STATUS_SQL, readInvestor, readContact, stripRestricted } = require("../lib/investorFields.js");
@@ -170,6 +171,10 @@ router.post("/:id/review", asyncRoute(async (req, res) => {
       ));
     }
     await logAudit({ actorId: req.user.id, action: `investor.${decision === "approve" ? "approved" : decision === "reject" ? "rejected" : "marked_duplicate"}`, objectType: "investor", objectId: id, details: reason ? { reason } : {}, req }, client);
+    await notifyPartner(client, current.partner_id, {
+      type: "investor_review", title: `${current.display_name || current.legal_name}: ${decision === "approve" ? "approved" : decision === "reject" ? "not approved" : "already known to RIV"}`,
+      body: decision === "approve" ? "RIV approved this investor." : "RIV reviewed this investor. See My investors for the outcome.", linkView: "investors", email: true,
+    });
     return result;
   });
   res.json({ investor: stripRestricted(investor, await hasRestrictedAccess(req.user.id)) });

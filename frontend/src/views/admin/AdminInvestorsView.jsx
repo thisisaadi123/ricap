@@ -14,6 +14,7 @@ import {
 } from "../../components/ui.jsx";
 import { CheckboxChips, KeyValues, Muted, Row, SectionTitle, Select, Tabs } from "../../components/forms.jsx";
 import { DocumentsPanel } from "../../components/DocumentsPanel.jsx";
+import { StatementView } from "../../components/StatementView.jsx";
 import { InviteLinkNotice } from "./AdminUsersView.jsx";
 
 const EMPTY = {
@@ -246,6 +247,29 @@ function ContactsPanel({ investor, contacts, reload, setError, showSuccess }) {
   );
 }
 
+// Statement and the updates logged against this investor (PRD 6.10).
+function InvestorRecordPanel({ investorId }) {
+  const [updates, setUpdates] = useState(null);
+  const load = useCallback((asOf) => api.investorRecord(investorId, asOf).then((r) => { setUpdates(r.updates); return r; }), [investorId]);
+  return (
+    <div>
+      <StatementView load={load} />
+      <SectionTitle>Updates sent</SectionTitle>
+      {!updates ? <Spinner /> : !updates.length ? <Muted>No updates sent to this investor yet.</Muted> : (
+        <DataTable columns={["Update", "Sent", "Read"]}>
+          {updates.map((u) => (
+            <tr key={u.id}>
+              <td style={cellStyle}><strong>{u.title}</strong><div><Muted>{u.type} · {u.vehicle_name}{u.status === "Withdrawn" ? " · withdrawn" : ""}</Muted></div></td>
+              <td style={cellStyle}>{dateStr(u.delivered_at)}</td>
+              <td style={cellStyle}>{u.first_read_at ? dateStr(u.first_read_at) : <Muted>Not yet</Muted>}</td>
+            </tr>
+          ))}
+        </DataTable>
+      )}
+    </div>
+  );
+}
+
 function InvestorDetailModal({ investorId, onClose, onChanged, onOpenKyc }) {
   const [data, setData] = useState(null);
   const [form, setForm] = useState(null);
@@ -293,6 +317,7 @@ function InvestorDetailModal({ investorId, onClose, onChanged, onOpenKyc }) {
         { id: "contacts", label: "Contacts", count: data.contacts.length },
         { id: "kyc", label: "KYC" },
         { id: "documents", label: "Documents" },
+        { id: "record", label: "Statement and updates" },
       ]} />
       {tab === "details" && (
         <>
@@ -330,6 +355,7 @@ function InvestorDetailModal({ investorId, onClose, onChanged, onOpenKyc }) {
         </Card>
       )}
       {tab === "documents" && <DocumentsPanel linkedType="investor" linkedId={inv.id} />}
+      {tab === "record" && <InvestorRecordPanel investorId={inv.id} />}
     </Modal>
   );
 }

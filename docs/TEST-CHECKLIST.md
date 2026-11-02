@@ -1,4 +1,4 @@
-# RICap manual test checklist (M0–M4)
+# RICap manual test checklist (M0–M6)
 
 Work through each section in order: later sections reuse what earlier ones create. Tick each box as you go. Every step says what you should see; if you see something else, note the step number.
 
@@ -144,6 +144,40 @@ Tip: use a private window for a second role at the same time.
 - [ ] 4.17 Deal header: capital placed, cash fee, sweat equity value and RIV total consideration add up; **Data-room log** shows every grant.
 - [ ] 4.18 The partner's **Commitments** shows their investor's IB commitment (stage and amounts only).
 
+## M5 – Money and partner payouts
+
+Use an investor brought by the demo partner, on the HoldCo. Emails and sign-in codes print in the backend terminal.
+
+- [ ] 5.1 Partner proposes the investor for $100,000. Partner → **Payouts**: **Accruing** estimate $4,200 ($4,000 + 5% VAT).
+- [ ] 5.2 Take it to Fully executed with a committed amount of $80,000. The estimate becomes $3,360.
+- [ ] 5.3 Record a part receipt: still Accruing. Record the rest: Money → **Partner payouts → To approve** shows it. The partner gets an alert and an email.
+- [ ] 5.4 Void the last receipt on the commitment: the payout goes back to Accruing. Record it again: back to To approve.
+- [ ] 5.5 **Approve**, then **To pay → Record payment** with date, reference and proof. Partner sees **Paid** with that date and reference.
+- [ ] 5.6 Try voiding a receipt on that commitment: refused, because the partner has been paid.
+- [ ] 5.7 Money → **Money in and out**: receipts and the payout appear with proof, totals add up, filters work. **Reconcile** one; tick **Unreconciled only**: it's gone.
+- [ ] 5.8 **Void** the partner payment with a reason: the movement stays greyed out and the payout returns to To pay.
+- [ ] 5.9 Settings → **Payout rules**: set the threshold to $3,000. A larger payout needs a second, different admin (sign in as admin2). The first admin sees "A second admin must too". Set it back to $50,000.
+- [ ] 5.10 IB deal: when a payout is more than the cash fee received, approving asks for a reason.
+- [ ] 5.11 Fund commitment from a partner's investor: the payout stays Accruing.
+- [ ] 5.12 Withdraw a commitment with an accruing payout: payout Cancelled. Reopen: back to Accruing.
+- [ ] 5.13 Money → **RIV's investments**: **New investment** → **Approve** → **Record payment** with proof. Deployed total goes up and it appears in Money in and out. Try **Exited**, **Write off**, **Cancel** and **Documents**.
+- [ ] 5.14 Partners → edit a partner: **VAT on payouts %** at 0 means no VAT on their new payouts.
+
+## M6 – Updates, statements, alerts, profile
+
+- [ ] 6.1 Investor's KYC opened or cleared: the bell shows a count; clicking the alert goes to the KYC page. **Mark all as read** clears the count.
+- [ ] 6.2 Partner adds an investor: admin bell shows "New investor to review". Investor submits KYC: "KYC to review", and clicking opens that file.
+- [ ] 6.3 Offer documents issued, payment instructions, soft commitment: investor gets an alert and an email (no bank details in either).
+- [ ] 6.4 **Updates → New update**: choose the HoldCo, write a title and text, save. Add an attachment. Investors don't see it while it's a draft.
+- [ ] 6.5 **Publish**: delivery log lists each investor with email status. An investor only at Eligible is not on it. Someone without a login shows "No portal login yet".
+- [ ] 6.6 Investor → **Updates**: unread dot, open it, attachment opens. Admin's log now shows it as read. The Home page shows the latest update.
+- [ ] 6.7 Partner → **Updates**: says it went out and to whom, without title, text or attachment. Publish another with **Partners can read this** ticked: partner can read it.
+- [ ] 6.8 Publish to **Selected investors**: only they get it. Selecting nobody: publishing is refused.
+- [ ] 6.9 **Withdraw** with a reason: it leaves the investor's and partner's pages, and the attachment no longer opens.
+- [ ] 6.10 Investor → **Statement**: committed, paid, outstanding and each payment. Choose an earlier date: later payments drop out. **Print or save as PDF** prints only the statement.
+- [ ] 6.11 Admin → Investors → an investor → **Statement and updates**: same statement and the list of updates sent.
+- [ ] 6.12 Investor → **Profile**: change phone: saved, KYC unchanged. Change legal name: warning appears; saved; KYC page says what's needed; admin gets an alert that opens the file; the audit log shows old and new names.
+
 ## Not built yet (don't test)
 
-Partner payouts and outbound investments (M5), investor monthly letters and statements and in-app notifications (M6), full dashboards (M7), retail intelligence (M8). Zoho Sign is tracked by hand; emails go to Terminal 2 until Resend is configured; files are stored in `backend/storage` until Supabase Storage is configured.
+Full dashboards (M7), retail intelligence (M8). Zoho Sign is tracked by hand; emails go to Terminal 2 until Resend is configured; files are stored in `backend/storage` until Supabase Storage is configured.

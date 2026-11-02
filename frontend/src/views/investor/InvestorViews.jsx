@@ -30,9 +30,11 @@ export function InvestorHome({ user, onNavigate }) {
   const [kyc, setKyc] = useState(null);
   const [docs, setDocs] = useState(null);
   const [investments, setInvestments] = useState(null);
+  const [updates, setUpdates] = useState(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    api.investorUpdates().then((r) => setUpdates(r.updates)).catch(() => {});
     api.investorCommitments().then((r) => setInvestments(r.commitments)).catch(() => {});
     api.investorMe().then((r) => setMe(r.investor)).catch((e) => setError(e.message));
     api.investorKyc().then(setKyc).catch(() => {});
@@ -69,6 +71,13 @@ export function InvestorHome({ user, onNavigate }) {
             {investments && investments.filter((i) => i.status === "Active" && i.next_action).length
               ? `${investments.filter((i) => i.status === "Active" && i.next_action).length} with something for you or RIV to do`
               : "Holdings, documents to sign and payments appear here."}
+          </div>
+        </Card>
+        <Card style={{ padding: 18, cursor: "pointer" }} onClick={() => onNavigate("updates")}>
+          <div style={{ fontWeight: 700, marginBottom: 8 }}>Latest update</div>
+          <div style={{ fontSize: 13, fontWeight: 600 }}>{updates?.[0]?.title || "Nothing yet"}</div>
+          <div style={{ fontSize: 12.5, color: MUTED, marginTop: 4, lineHeight: 1.6 }}>
+            {updates?.length ? `${updates.filter((u) => !u.first_read_at).length} unread of ${updates.length}` : "Letters, statements and deal news from RIV appear here."}
           </div>
         </Card>
       </div>

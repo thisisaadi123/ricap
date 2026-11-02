@@ -1,7 +1,7 @@
 import React from "react";
 import { LogOut } from "lucide-react";
 import { BRAND, FONT } from "../brand.js";
-import { GhostButton } from "./ui.jsx";
+import { NotificationBell } from "./NotificationBell.jsx";
 
 // One list per role, shared by the tab strip and the page title. Each
 // milestone adds its pages here (see docs/TECH-SPEC.md section 6).
@@ -14,12 +14,16 @@ export function navItemsFor(role) {
     { id: "vehicles", label: "Vehicles" },
     { id: "deals", label: "IB deals" },
     { id: "commitments", label: "Commitments" },
+    { id: "money", label: "Money" },
+    { id: "updates", label: "Updates" },
     { id: "settings", label: "Settings" },
   ];
   if (role === "partner") return [
     { id: "investors", label: "My investors" },
     { id: "opportunities", label: "Opportunities" },
     { id: "commitments", label: "Commitments" },
+    { id: "payouts", label: "Payouts" },
+    { id: "updates", label: "Updates" },
   ];
   return [
     { id: "home", label: "Home" },
@@ -27,12 +31,15 @@ export function navItemsFor(role) {
     { id: "opportunities", label: "Opportunities" },
     { id: "kyc", label: "KYC" },
     { id: "documents", label: "Documents" },
+    { id: "updates", label: "Updates" },
+    { id: "statement", label: "Statement" },
+    { id: "profile", label: "Profile" },
   ];
 }
 
 export const ROLE_LABELS = { admin: "RIV Admin", partner: "Venture Partner", investor: "Investor" };
 
-export function NavBar({ view, setView, user, onLogout }) {
+export function NavBar({ view, setView, user, onLogout, onOpenLink }) {
   const items = navItemsFor(user.role);
   return (
     <div style={{ borderBottom: `1px solid ${BRAND.line}`, background: "#fff", position: "sticky", top: 0, zIndex: 20 }}>
@@ -45,7 +52,7 @@ export function NavBar({ view, setView, user, onLogout }) {
           <div style={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
             {items.map((it) => (
               <button key={it.id} onClick={() => setView(it.id)} style={{
-                fontFamily: FONT, fontWeight: 600, fontSize: 13, padding: "8px 10px", borderRadius: 8,
+                fontFamily: FONT, fontWeight: 600, fontSize: 13, padding: "8px 8px", borderRadius: 8,
                 border: "none", cursor: "pointer",
                 background: view === it.id ? BRAND.cream : "transparent",
                 color: view === it.id ? BRAND.coral : "#7A756F",
@@ -56,11 +63,14 @@ export function NavBar({ view, setView, user, onLogout }) {
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <NotificationBell onOpenLink={onOpenLink} />
           <div style={{ fontFamily: FONT, fontSize: 12.5, color: "#7A756F", textAlign: "right" }}>
             {user.name}
             <div style={{ fontSize: 11, color: "#9B958F" }}>{ROLE_LABELS[user.role]}</div>
           </div>
-          <GhostButton onClick={onLogout} icon={LogOut} style={{ padding: "8px 10px" }}>Log out</GhostButton>
+          <button type="button" onClick={onLogout} aria-label="Log out" title="Log out" style={{ background: "none", border: `1px solid ${BRAND.line}`, borderRadius: 10, padding: 8, cursor: "pointer", display: "flex", color: "#7A756F" }}>
+            <LogOut size={16} />
+          </button>
         </div>
       </div>
     </div>

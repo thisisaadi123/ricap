@@ -14,7 +14,7 @@ import { DocLink, FileButton, Muted, Row, Select, SignatureBadge, sizeStr, uploa
 
 const SHARE_OPTION = { investor: "Shareable with investor", partner: "Shareable with partner", commitment: "Shareable with investor" };
 const SHARE_LABEL = { investor: "RIV team + this investor", partner: "RIV team + this partner", commitment: "RIV team + the investor" };
-const DEFAULT_TYPE = { partner: "Venture Partner Agreement", vehicle: "Teaser" };
+const DEFAULT_TYPE = { partner: "Venture Partner Agreement", vehicle: "Teaser", outbound: "Investment agreement", update: "Update" };
 
 function UploadModal({ linkedType, linkedId, onClose, onDone }) {
   const [file, setFile] = useState(null);
@@ -50,7 +50,7 @@ function UploadModal({ linkedType, linkedId, onClose, onDone }) {
         <Row>
           <Field label="Who can see it" required>
             <Select value={form.confidentiality} onChange={set("confidentiality")} options={[
-              { value: "Internal", label: linkedType === "vehicle" ? "RIV team (teasers also go to partners and investors)" : "RIV team only" },
+              { value: "Internal", label: linkedType === "vehicle" ? "RIV team (teasers also go to partners and investors)" : linkedType === "update" ? "Whoever receives this update" : "RIV team only" },
               ...(SHARE_OPTION[linkedType] ? [{ value: SHARE_OPTION[linkedType], label: SHARE_LABEL[linkedType] }] : []),
               { value: "Restricted", label: "Restricted admins only" },
             ]} />
@@ -114,7 +114,7 @@ export function DocumentsPanel({ linkedType, linkedId }) {
                 <div><Muted>{d.doc_type} · {uploadedLine(d)}</Muted></div>
                 {d.voided_at && <div><Muted style={{ color: "#D33639" }}>Voided: {d.void_reason}</Muted></div>}
               </td>
-              <td style={cellStyle}>{d.confidentiality === "Internal" ? (d.doc_type === "Teaser" && linkedType === "vehicle" ? "RIV, partners, investors" : "RIV team") : d.confidentiality === "Restricted" ? "Restricted admins" : SHARE_LABEL[linkedType]}</td>
+              <td style={cellStyle}>{d.confidentiality === "Internal" ? (d.doc_type === "Teaser" && linkedType === "vehicle" ? "RIV, partners, investors" : linkedType === "update" ? "Recipients" : "RIV team") : d.confidentiality === "Restricted" ? "Restricted admins" : SHARE_LABEL[linkedType]}</td>
               <td style={cellStyle}>
                 {d.voided_at ? <SignatureBadge status={d.signature_status} /> : (
                   <Select value={d.signature_status} options={SIGNATURE_STATUSES} style={{ padding: "6px 8px", fontSize: 12, width: 170 }}

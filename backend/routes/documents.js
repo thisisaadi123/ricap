@@ -45,7 +45,7 @@ fileRouter.get("/:token", (req, res) => {
 // ---------- admin ----------
 adminRouter.use(requireAuth, requireAdmin);
 
-const LINKABLE = { investor: "investors", partner: "venture_partners", commitment: "commitments", vehicle: "vehicles" };
+const LINKABLE = { investor: "investors", partner: "venture_partners", commitment: "commitments", vehicle: "vehicles", outbound: "outbound_investments", update: "investor_updates" };
 // Who a document on each kind of record can be shared with.
 const SHARE_TARGET = { investor: "Shareable with investor", commitment: "Shareable with investor", partner: "Shareable with partner" };
 

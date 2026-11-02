@@ -8,6 +8,8 @@ const v = require("../lib/validate.js");
 const { logAudit } = require("../lib/audit.js");
 const { receiveFile, saveDocument } = require("../lib/documents.js");
 const E = require("../lib/commitments.js");
+const { notifyInvestor, notifyPartner } = require("../lib/notify.js");
+const { refreshPayout, assertNoPaidPayout } = require("../lib/payouts.js");
 
 const router = Router();
 router.use(requireAuth, requireAdmin);
@@ -59,6 +61,7 @@ router.get("/:id", asyncRoute(async (req, res) => {
   const c = await E.loadCommitment(pool, v.id(req.params.id, "commitment"));
   const next = E.nextStage(c.flow, c.stage);
   const nextReadiness = next ? await E.readiness(pool, c, next) : null;
+  const { rows: payouts } = await pool.query("SELECT id, status, pct, basis_amount, amount, total FROM partner_payouts WHERE commitment_id = $1", [c.id]);
   const [events, notes, documents, instructions, receipts] = await Promise.all([
     pool.query(
       `SELECT e.*, u.name AS actor_name FROM commitment_events e LEFT JOIN users u ON u.id = e.actor_user_id
@@ -91,6 +94,7 @@ router.get("/:id", asyncRoute(async (req, res) => {
     instructions: instructions.rows,
     receipts: receipts.rows,
     outstanding: c.committed_amount ? Math.max(0, Number(c.committed_amount) - Number(c.received_total)) : null,
+    payout: payouts[0] || null,
   });
 }));
 
@@ -118,6 +122,7 @@ router.patch("/:id", asyncRoute(async (req, res) => {
     );
     await logAudit({ actorId: req.user.id, action: "commitment.updated", objectType: "commitment", objectId: id, details: Object.fromEntries(cols.map((col) => [col, f[col]])), req }, client);
     if (f.indicative_amount !== undefined && c.stage === "Intent") await E.recheck(client, id, { actorId: req.user.id, req });
+    if (f.indicative_amount !== undefined) await refreshPayout(client, id, { actorId: req.user.id, req });
     return rows[0];
   });
   res.json({ commitment });
@@ -182,6 +187,9 @@ router.post("/:id/exit", asyncRoute(async (req, res) => {
     await client.query("UPDATE commitments SET status = $2, exit_reason = $3, updated_at = now(), updated_by = $4 WHERE id = $1", [id, status, reason, req.user.id]);
     await E.recordEvent(client, c, { toStatus: status, note: reason, actorId: req.user.id });
     await logAudit({ actorId: req.user.id, action: "commitment.status_changed", objectType: "commitment", objectId: id, details: { from: c.status, to: status, reason }, req }, client);
+    await refreshPayout(client, id, { actorId: req.user.id, req });
+    await notifyInvestor(client, c.investor_id, { type: "stage", title: `${c.vehicle_name}: ${status}`, body: status === "On hold" ? "RIV will be in touch." : "This commitment has been closed. Please contact RIV with any questions.", linkView: "investments", linkId: id });
+    await notifyPartner(client, c.partner_id, { type: "stage_partner", title: `${c.investor_name}: ${status}`, body: c.vehicle_name, linkView: "commitments", linkId: id });
   });
   res.json({ commitment: await E.loadCommitment(pool, id) });
 }));
@@ -200,6 +208,7 @@ router.post("/:id/reopen", asyncRoute(async (req, res) => {
     }
     await E.recordEvent(client, c, { toStatus: "Active", note: `Reopened: ${note}`, actorId: req.user.id });
     await logAudit({ actorId: req.user.id, action: "commitment.reopened", objectType: "commitment", objectId: id, details: { from: c.status, note }, req }, client);
+    await refreshPayout(client, id, { actorId: req.user.id, req });
   });
   res.json({ commitment: await E.loadCommitment(pool, id) });
 }));
@@ -226,6 +235,7 @@ router.post("/:id/data-room/:action", asyncRoute(async (req, res) => {
       if (E.stageIndex("IB", c.stage) < E.stageIndex("IB", "NDA signed")) throw httpError(400, "The investor must sign the NDA before getting data-room access.");
       if (c.data_room_granted_at) throw httpError(400, "Access is already granted.");
       await client.query("UPDATE commitments SET data_room_granted_at = now(), updated_at = now() WHERE id = $1", [id]);
+      await notifyInvestor(client, c.investor_id, { type: "stage", title: `${c.vehicle_name}: data room open`, body: "RIV has given you access to the data room. Sign in to open it.", linkView: "investments", linkId: id, email: true });
     } else {
       if (!c.data_room_granted_at) throw httpError(400, "Access isn't granted.");
       await client.query("UPDATE commitments SET data_room_granted_at = NULL, updated_at = now() WHERE id = $1", [id]);
@@ -327,6 +337,7 @@ router.post("/:id/receipts/:receiptId/void", asyncRoute(async (req, res) => {
   await inTransaction(pool, async (client) => {
     const c = await E.loadCommitment(client, id, { lock: true });
     if (E.stageIndex(c.flow, c.stage) > E.stageIndex(c.flow, "Funds received")) throw httpError(400, "Shares are already issued; this receipt can't be voided.");
+    await assertNoPaidPayout(client, [id]);
     const { rows } = await client.query(
       `UPDATE money_movements SET voided_at = now(), voided_by = $3, void_reason = $4
        WHERE id = $1 AND commitment_id = $2 AND voided_at IS NULL RETURNING amount`,
@@ -338,6 +349,7 @@ router.post("/:id/receipts/:receiptId/void", asyncRoute(async (req, res) => {
     if (c.stage === "Funds received") {
       await client.query("UPDATE commitments SET stage = 'Funds due', updated_at = now(), updated_by = $2 WHERE id = $1", [id, req.user.id]);
       await E.recordEvent(client, c, { toStage: "Funds due", note: `Receipt voided: ${reason}`, actorId: req.user.id });
+      await refreshPayout(client, id, { actorId: req.user.id, req });
     }
   });
   res.json({ commitment: await E.loadCommitment(pool, id) });

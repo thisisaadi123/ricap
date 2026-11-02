@@ -74,8 +74,10 @@ async function saveDocument(client, { file, docType, title, linkedType, linkedId
 //   investor - their own KYC uploads, their investor's and commitments'
 //              documents marked "Shareable with investor", and teasers of
 //              vehicles they can see
+//              and attachments of updates they received
 //   partner  - their own partner documents marked "Shareable with partner",
-//              and teasers of vehicles they can see
+//              teasers of vehicles they can see, and attachments of updates
+//              marked shareable that went to their investors
 async function canAccessDocument(db, user, doc) {
   const kycDoc = doc.linked_type === "kyc_item" || doc.linked_type === "kyc_ubo";
   if (user.role === "admin") {
@@ -93,6 +95,14 @@ async function canAccessDocument(db, user, doc) {
       return Boolean(own[0]);
     }
     if (doc.linked_type === "vehicle") return doc.doc_type === "Teaser" && isVisible(db, "investor", doc.linked_id, investorId);
+    if (doc.linked_type === "update") {
+      const { rows: own } = await db.query(
+        `SELECT 1 FROM update_deliveries d JOIN investor_updates u ON u.id = d.update_id
+         WHERE d.update_id = $1 AND d.investor_id = $2 AND u.status = 'Published'`,
+        [doc.linked_id, investorId]
+      );
+      return Boolean(own[0]);
+    }
     if (doc.linked_type === "kyc_item") {
       const { rows: own } = await db.query(
         "SELECT 1 FROM kyc_items it JOIN kyc_files f ON f.id = it.kyc_file_id WHERE it.id = $1 AND f.investor_id = $2",
@@ -104,6 +114,17 @@ async function canAccessDocument(db, user, doc) {
   }
   if (user.role === "partner") {
     if (doc.linked_type === "vehicle") return doc.doc_type === "Teaser" && isVisible(db, "partner", doc.linked_id);
+    if (doc.linked_type === "update") {
+      const { rows: own } = await db.query(
+        `SELECT 1 FROM update_deliveries d
+         JOIN investor_updates u ON u.id = d.update_id
+         JOIN investors i ON i.id = d.investor_id
+         JOIN venture_partners p ON p.id = i.partner_id
+         WHERE d.update_id = $1 AND p.user_id = $2 AND u.status = 'Published' AND u.shareable_with_partners LIMIT 1`,
+        [doc.linked_id, user.id]
+      );
+      return Boolean(own[0]);
+    }
     if (doc.linked_type !== "partner" || doc.confidentiality !== "Shareable with partner") return false;
     const { rows } = await db.query("SELECT 1 FROM venture_partners WHERE id = $1 AND user_id = $2", [doc.linked_id, user.id]);
     return Boolean(rows[0]);

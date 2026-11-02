@@ -47,6 +47,7 @@ function readPartner(body, { partial }) {
   if (has("payout_holdco_pct")) out.payout_holdco_pct = v.number(body.payout_holdco_pct, "HoldCo payout %", { required: true, min: 0, max: 100 });
   if (has("payout_fund_pct")) out.payout_fund_pct = v.number(body.payout_fund_pct, "Fund payout %", { required: true, min: 0, max: 100 });
   if (has("payout_ib_pct")) out.payout_ib_pct = v.number(body.payout_ib_pct, "IB payout %", { required: true, min: 0, max: 100 });
+  if (has("payout_vat_pct")) out.payout_vat_pct = v.number(body.payout_vat_pct, "VAT on payouts %", { required: true, min: 0, max: 100 });
   if (has("credit_window_months")) out.credit_window_months = v.number(body.credit_window_months, "Credit window", { required: true, min: 0, max: 120, integer: true });
   if (has("riv_owner_user_id")) out.riv_owner_user_id = body.riv_owner_user_id ? v.id(body.riv_owner_user_id, "RIV owner") : null;
   if (has("status")) out.status = v.oneOf(body.status, ["Active", "Inactive"], "Status", { required: true });

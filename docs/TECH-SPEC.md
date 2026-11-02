@@ -80,8 +80,8 @@ Tables follow PRD Section 8. Each milestone adds its own migration file.
 | M2 KYC & documents | `kyc_checklist_templates`, `kyc_files`, `kyc_items`, `kyc_ubos`, `documents`, `document_templates` |
 | M3 HoldCo + Fund soft commitments | `vehicles` (minimum tickets per investor kind live on the vehicle), `bank_account_changes`, `vehicle_visibility`, `commitments`, `commitment_events`, `commitment_notes`, `payment_instructions`, `money_movements`, `stage_requirements` |
 | M4 IB deals | `ib_deals`, `deal_access_log`, `fee_invoices` |
-| M5 Money & payouts | `money_movements`, `partner_payouts`, `outbound_investments`, `bank_account_changes` |
-| M6 Investor portal | `investor_updates`, `update_deliveries`, `notifications`, `interest_requests`, `vehicle_visibility` |
+| M5 Money & payouts | `partner_payouts`, `outbound_investments`, `app_settings`; `money_movements` gains payout and outbound links and reconciliation |
+| M6 Investor updates & alerts | `investor_updates`, `update_deliveries`, `notifications` |
 | M8 Retail intelligence | `retail_tags`, `entity_tags`, `retail_insights`, `enrichment_runs` |
 
 ### M1–M2 notes
@@ -101,6 +101,16 @@ Tables follow PRD Section 8. Each milestone adds its own migration file.
 - **Fund in v1** (LEG-3, MON-5): soft commitments only. The investor confirms in the portal, or RIV uploads their emailed confirmation.
 - **IB deals** (BIZ-3, MON-1, MON-7, LEG-11): rounds under USD 2M need sweat equity; under USD 500K also need a recorded reason. Sweat equity is valued at pre-money. Investors pay the startup directly; RIV records the startup's confirmation. Fee invoices bill the cash fee on confirmed placements plus VAT, from Retail X HoldCo, each placement once. Closing a deal withdraws investors who hadn't transferred funds; funded investors stay active until allotment.
 - **Visibility**: partners and investors see Open vehicles and Live deals flagged visible to them; an admin can hide a vehicle from individual investors. Teasers are documents of type "Teaser" on the vehicle.
+
+### M5–M6 notes
+
+- **Partner payouts (`lib/payouts.js`).** One row per credited commitment, kept in sync by `refreshPayout` after anything that changes the commitment. HoldCo and Fund: % of capital. HoldCo is earned at Funds received; Fund only accrues in v1. IB: % of RIV's consideration (cash fee + sweat share, capped at 100% of the sweat value), earned when the invoice is paid. Earned amounts are frozen; going un-earned returns the row to Accruing and clears approvals. Paid and manually cancelled rows never change.
+- **Approvals.** One admin, or two different admins above `payout_second_admin_above` (Settings → Payout rules; total including VAT). An IB payout above the cash fee received needs a logged reason. Payments go out of the Retail X HoldCo account with proof.
+- **Money view.** Every movement with proof, totals, filters, reconcile, and void with a reason. A void puts its record back one step; a fee receipt can't be voided once a payout on it is paid.
+- **Alerts (`lib/notify.js`).** Routes insert `notifications` rows in their own transaction. `flushEmailsAfterWrites` sends pending emails before each write request answers (the hosted backend stops once it has responded), claiming rows with `SKIP LOCKED`, within an 8-second budget, up to 3 attempts. Leftovers go with a later request. Emails never carry bank details or update text.
+- **Who gets an update.** Investors with a live commitment past Eligible in that vehicle or deal, or a selected subset of them. Partners see that it went out; contents only if marked shareable. Withdrawn updates stay on record and leave the portals.
+- **Statement (`lib/statements.js`).** Worked out from commitments and money records as of a date. It shows current stage and committed figures, with payments up to the date. Indicative HoldCo figures are left out until committed.
+- **Profile.** Contact details change straight away. Legal name or country reopens a Submitted or Cleared KYC file and alerts admins.
 
 ## 6. Pages by role
 
@@ -131,7 +141,7 @@ Tables follow PRD Section 8. Each milestone adds its own migration file.
 | M3 | HoldCo flow | Commitment engine, eligibility, HoldCo stages with evidence gates; Fund soft commitments |
 | M4 | IB deals | Deal setup, mandate, teaser, investor stages, sweat equity, 5% fee + VAT invoice |
 | M5 | Money & payouts | Money movements, partner payouts (4% / 15%), outbound investments, two-admin bank changes |
-| M6 | Investor portal | Holdings, actions, signing, payments, updates, interest in open deals, email + in-app alerts |
+| M6 | Investor updates & alerts | Monthly letters and other updates, delivery log, account statements, profile, email + in-app alerts |
 | M7 | Dashboards | Admin, partner and investor dashboards; Intelligence headline view |
 | M8 | Retail intelligence | Retail lens, tags, insight notes, Claude enrichment and summaries |
 | M9 | Launch | Security pass, full Bigin import, testing with Saravana, go-live |
