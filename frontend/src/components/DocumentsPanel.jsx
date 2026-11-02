@@ -40,7 +40,7 @@ function UploadModal({ linkedType, linkedId, onClose, onDone }) {
     <Modal title="Upload document" onClose={onClose} width={520}>
       <form onSubmit={submit}>
         <ErrorBanner text={error} />
-        <Field label="File" required hint="PDF, image or Word, up to 10 MB.">
+        <Field label="File" required hint="PDF, image or Word, up to 4 MB.">
           <input type="file" style={inputStyle} accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx" onChange={(e) => setFile(e.target.files?.[0] || null)} />
         </Field>
         <Row>
@@ -114,7 +114,11 @@ export function DocumentsPanel({ linkedType, linkedId }) {
                 <div><Muted>{d.doc_type} · {uploadedLine(d)}</Muted></div>
                 {d.voided_at && <div><Muted style={{ color: "#D33639" }}>Voided: {d.void_reason}</Muted></div>}
               </td>
-              <td style={cellStyle}>{d.confidentiality === "Internal" ? (d.doc_type === "Teaser" && linkedType === "vehicle" ? "RIV, partners, investors" : linkedType === "update" ? "Recipients" : "RIV team") : d.confidentiality === "Restricted" ? "Restricted admins" : SHARE_LABEL[linkedType]}</td>
+              <td style={cellStyle}>{!d.voided_at && SHARE_OPTION[linkedType] ? (
+                <Select value={d.confidentiality} style={{ padding: "6px 8px", fontSize: 12, width: 170 }}
+                  options={[{ value: "Internal", label: "RIV team" }, { value: SHARE_OPTION[linkedType], label: SHARE_LABEL[linkedType] }, { value: "Restricted", label: "Restricted admins" }]}
+                  onChange={(val) => act(() => api.updateDocument(d.id, { confidentiality: val }), "Who can see it was updated.")} />
+              ) : d.confidentiality === "Internal" ? (d.doc_type === "Teaser" && linkedType === "vehicle" ? "RIV, partners, investors" : linkedType === "update" ? "Recipients" : "RIV team") : d.confidentiality === "Restricted" ? "Restricted admins" : SHARE_LABEL[linkedType]}</td>
               <td style={cellStyle}>
                 {d.voided_at ? <SignatureBadge status={d.signature_status} /> : (
                   <Select value={d.signature_status} options={SIGNATURE_STATUSES} style={{ padding: "6px 8px", fontSize: 12, width: 170 }}

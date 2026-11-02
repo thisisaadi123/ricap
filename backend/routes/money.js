@@ -113,10 +113,14 @@ router.get("/payouts", asyncRoute(async (req, res) => {
   }
   const { rows } = await pool.query(`${PAYOUT_SQL} ${filter} ORDER BY po.updated_at DESC LIMIT 500`, params);
   const threshold = await P.secondAdminThreshold(pool);
-  res.json({
-    payouts: rows.map((r) => ({ ...r, needs_second_admin: Number(r.total) > threshold })),
-    threshold,
-  });
+  // Whether a payout is above the cash received depends on the deal's other
+  // payouts too, so work it out now rather than trusting the stored flag.
+  const payouts = await Promise.all(rows.map(async (r) => ({
+    ...r,
+    over_cash_flag: r.status === "Earned" && r.flow === "IB" ? await P.exceedsCashReceived(pool, r.vehicle_id, r.id, r.amount) : r.over_cash_flag,
+    needs_second_admin: Number(r.total) > threshold,
+  })));
+  res.json({ payouts, threshold });
 }));
 
 // Approve (PRD 6.9): every payout is admin-approved. Above the threshold a
@@ -132,9 +136,9 @@ router.post("/payouts/:id/approve", asyncRoute(async (req, res) => {
     if (po.status !== "Earned") throw httpError(400, po.status === "Accruing" ? "This payout isn't earned yet." : `This payout is already ${po.status.toLowerCase()}.`);
     const over = po.flow === "IB" && (await P.exceedsCashReceived(client, po.vehicle_id, po.id, po.amount));
     if (over && !reason && !po.over_cash_reason) throw httpError(400, "This payout is more than the cash fee RIV has received on this deal. Give a reason to approve it.");
-    if (po.first_approved_by === req.user.id) throw httpError(403, "You've already approved this. A second admin must approve it.");
     const threshold = await P.secondAdminThreshold(client);
     const needsTwo = Number(po.total) > threshold;
+    if (needsTwo && po.first_approved_by === req.user.id) throw httpError(403, "You've already approved this. A second admin must approve it.");
     const complete = !needsTwo || Boolean(po.first_approved_by);
     const { rows: updated } = await client.query(
       `UPDATE partner_payouts SET over_cash_flag = $2, over_cash_reason = coalesce($3, over_cash_reason),

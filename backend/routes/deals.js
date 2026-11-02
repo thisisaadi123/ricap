@@ -11,6 +11,7 @@ const { receiveFile, saveDocument } = require("../lib/documents.js");
 const D = require("../lib/deals.js");
 const E = require("../lib/commitments.js");
 const { refreshPayout } = require("../lib/payouts.js");
+const { notifyInvestor, notifyPartner } = require("../lib/notify.js");
 
 const router = Router();
 router.use(requireAuth, requireAdmin);
@@ -26,7 +27,7 @@ const LIST_SQL = `
   SELECT d.*, v.name, v.summary,
          ${PLACED_SQL} AS capital_placed,
          (SELECT count(*)::int FROM commitments c WHERE c.vehicle_id = d.vehicle_id AND c.status IN ('Active', 'On hold')) AS live_count,
-         coalesce((SELECT sum(fee_amount) FROM fee_invoices f WHERE f.vehicle_id = d.vehicle_id AND f.status <> 'Void'), 0) AS fees_invoiced,
+         coalesce((SELECT sum(fee_amount) FROM fee_invoices f WHERE f.vehicle_id = d.vehicle_id AND f.status IN ('Sent', 'Paid')), 0) AS fees_invoiced,
          coalesce((SELECT sum(fee_amount) FROM fee_invoices f WHERE f.vehicle_id = d.vehicle_id AND f.status = 'Paid'), 0) AS fees_received
   FROM ib_deals d JOIN vehicles v ON v.id = d.vehicle_id`;
 
@@ -120,7 +121,7 @@ router.get("/:id", asyncRoute(async (req, res) => {
     next_stage: next,
     next_evidence: next ? await D.dealEvidence(pool, deal, next) : [],
     commitments: commitments.rows,
-    invoices: invoices.rows.map((f) => ({ ...f, overdue: f.status === "Sent" && new Date(f.due_date) < new Date(new Date().toDateString()) })),
+    invoices: invoices.rows.map((f) => ({ ...f, overdue: f.status === "Sent" && D.isoDate(f.due_date) < D.isoDate(new Date()) })),
     access_log: access.rows,
   });
 }));
@@ -196,6 +197,8 @@ router.post("/:id/close", asyncRoute(async (req, res) => {
       await client.query("UPDATE commitments SET status = 'Withdrawn', exit_reason = $2, updated_at = now(), updated_by = $3 WHERE id = $1", [o.id, why, req.user.id]);
       await E.recordEvent(client, c, { toStatus: "Withdrawn", note: why, actorId: req.user.id });
       await refreshPayout(client, o.id, { actorId: req.user.id, req });
+      await notifyInvestor(client, c.investor_id, { type: "stage", title: `${c.vehicle_name}: Withdrawn`, body: "This deal has ended, so your commitment has been closed. Please contact RIV with any questions.", linkView: "investments", linkId: o.id });
+      await notifyPartner(client, c.partner_id, { type: "stage_partner", title: `${c.investor_name}: Withdrawn`, body: `${c.vehicle_name} has ended.`, linkView: "commitments", linkId: o.id });
     }
     await client.query("UPDATE ib_deals SET deal_status = $2, closed_at = now(), close_reason = $3, updated_at = now() WHERE vehicle_id = $1", [id, status, reason]);
     await client.query("UPDATE vehicles SET status = 'Closed', updated_at = now() WHERE id = $1", [id]);

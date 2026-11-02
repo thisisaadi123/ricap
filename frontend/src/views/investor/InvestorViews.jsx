@@ -84,7 +84,7 @@ export function InvestorHome({ user, onNavigate, onOpenInvestment, onOpenUpdate 
       <SectionTitle>My holdings</SectionTitle>
       {!holdings.length ? <Muted>Your investments appear here once you've shown interest in an opportunity.</Muted> : (
         <>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12, marginBottom: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(180px, 100%), 1fr))", gap: 12, marginBottom: 12 }}>
             {[["Committed", totals.committed], ["Paid", totals.paid], ["Outstanding", totals.outstanding]].map(([label, value]) => (
               <Card key={label} style={{ padding: 14 }}><Muted>{label}</Muted><div style={{ fontSize: 20, fontWeight: 700, marginTop: 2 }}>{usd(value)}</div></Card>
             ))}
@@ -103,7 +103,7 @@ export function InvestorHome({ user, onNavigate, onOpenInvestment, onOpenUpdate 
         </>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14, marginTop: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(280px, 100%), 1fr))", gap: 14, marginTop: 24 }}>
         <Card style={clickable} onClick={() => (updates?.[0] ? onOpenUpdate(updates[0].id) : onNavigate("updates"))}>
           <div style={{ fontWeight: 700, marginBottom: 8 }}>Latest update</div>
           <div style={{ fontSize: 13, fontWeight: 600 }}>{updates?.[0]?.title || "Nothing yet"}</div>
@@ -203,7 +203,7 @@ export function InvestorKycView() {
           <PrimaryButton disabled={submitting || missing.length > 0} onClick={submit}>{submitting ? "Submitting…" : "Submit to RIV"}</PrimaryButton>
         </div>
       )}
-      <div style={{ fontSize: 11.5, color: MUTED, marginTop: 14 }}>PDF, JPG, PNG or Word, up to 10 MB each. Only RIV's authorised team can see your documents.</div>
+      <div style={{ fontSize: 11.5, color: MUTED, marginTop: 14 }}>PDF, JPG, PNG or Word, up to 4 MB each. Only RIV's authorised team can see your documents.</div>
     </div>
   );
 }
@@ -220,7 +220,7 @@ export function InvestorDocumentsView() {
       <DataTable columns={["Document", "Type", "Signature", "Date"]}>
         {docs.map((d) => (
           <tr key={d.id}>
-            <td style={cellStyle}><div style={{ fontWeight: 600 }}>{d.title}{d.version > 1 && <Muted> · v{d.version}</Muted>}</div><DocLink doc={d} onError={setError} /></td>
+            <td style={cellStyle}><div style={{ fontWeight: 600 }}>{d.title}{d.version > 1 && <Muted> · v{d.version}</Muted>}</div><DocLink doc={d} onError={setError} />{d.vehicle_name && <div><Muted>{d.vehicle_name}</Muted></div>}</td>
             <td style={cellStyle}>{d.doc_type}</td>
             <td style={cellStyle}><SignatureBadge status={d.signature_status} /></td>
             <td style={cellStyle}>{dateStr(d.uploaded_at)}</td>

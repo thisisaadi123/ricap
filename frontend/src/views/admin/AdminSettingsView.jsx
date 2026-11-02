@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { api } from "../../api.js";
 import { BRAND, MUTED } from "../../brand.js";
-import { DOC_TYPES, FLOWS } from "../../constants.js";
+import { AUTOMATIC_STAGES, DOC_TYPES, FLOWS } from "../../constants.js";
 import { Card, ErrorBanner, Field, GhostButton, Spinner, SuccessBanner, inputStyle, useSuccessMessage } from "../../components/ui.jsx";
 import { Muted, Row, Select, Tabs } from "../../components/forms.jsx";
 import { AdminTemplatesView } from "./AdminTemplatesView.jsx";
@@ -13,8 +13,8 @@ import { AuditLogView } from "./AuditLogView.jsx";
 
 // Stages that can carry evidence, per flow (Intent and Eligible never do).
 const EVIDENCE_STAGES = {
-  HoldCo: FLOWS.HoldCo.slice(2),
-  Fund: FLOWS.Fund.slice(2),
+  HoldCo: FLOWS.HoldCo.slice(2).filter((s) => !AUTOMATIC_STAGES.includes(s)),
+  Fund: FLOWS.Fund.slice(2).filter((s) => !AUTOMATIC_STAGES.includes(s)),
   IB: FLOWS.IB.slice(2),
   "IB deal": ["Mandate signed", "Live"],
 };

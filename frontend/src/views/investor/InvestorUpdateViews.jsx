@@ -58,7 +58,7 @@ export function InvestorStatementView() {
   return <StatementView load={load} />;
 }
 
-export function InvestorProfileView() {
+export function InvestorProfileView({ onSaved }) {
   const [profile, setProfile] = useState(null);
   const [form, setForm] = useState(null);
   const [error, setError] = useState("");
@@ -76,6 +76,7 @@ export function InvestorProfileView() {
     try {
       const r = await api.investorSaveProfile(form);
       fill(r.profile);
+      onSaved?.();
       showSuccess(r.kyc_reopened ? "Saved. Your KYC is open again for RIV to review: see the KYC page." : "Saved.");
     } catch (err) { setError(err.message); }
     setSaving(false);

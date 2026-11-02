@@ -16,6 +16,9 @@ export function setSession(token, user) {
   localStorage.setItem(TOKEN_KEY, token);
   localStorage.setItem(USER_KEY, JSON.stringify(user));
 }
+export function setStoredUser(user) {
+  localStorage.setItem(USER_KEY, JSON.stringify(user));
+}
 export function clearSession() {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
@@ -25,6 +28,9 @@ export function clearSession() {
 // suspended). App.jsx sets this to send the user back to sign-in.
 let onSessionExpired = () => {};
 export function setSessionExpiredHandler(fn) { onSessionExpired = fn; }
+
+// Matches backend/lib/documents.js.
+const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
 
 // `form` sends a FormData body (file uploads); the browser sets the
 // multipart Content-Type itself.
@@ -53,6 +59,7 @@ async function request(path, { method = "GET", body, form } = {}) {
 }
 
 function formOf(file, fields = {}) {
+  if (file && file.size > MAX_UPLOAD_BYTES) throw new Error("That file is over 4 MB.");
   const fd = new FormData();
   for (const [k, v] of Object.entries(fields)) if (v !== undefined && v !== null && v !== "") fd.append(k, v);
   fd.append("file", file);
@@ -64,10 +71,17 @@ function query(params) {
   return q.toString() ? `?${q}` : "";
 }
 
-// Opens a document through its 60-second link (PRD 9.2).
+// Downloads a document through its 60-second link (PRD 9.2). A plain link
+// click rather than a new tab: Safari blocks new tabs opened after waiting on
+// the server, and these links always download.
 export async function openDocument(id) {
-  const { url } = await request(`/documents/${id}/link`);
-  window.open(url.startsWith("/") ? `${API_BASE}${url}` : url, "_blank", "noopener");
+  const { url, filename } = await request(`/documents/${id}/link`);
+  const link = document.createElement("a");
+  link.href = url.startsWith("/") ? `${API_BASE}${url}` : url;
+  link.download = filename || "";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
 }
 
 export const api = {

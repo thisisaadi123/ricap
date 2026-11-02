@@ -8,6 +8,7 @@ const { asyncRoute, httpError, inTransaction } = require("../lib/http.js");
 const v = require("../lib/validate.js");
 const C = require("../lib/constants.js");
 const { logAudit } = require("../lib/audit.js");
+const { notifyAdmins } = require("../lib/notify.js");
 
 const router = Router();
 router.use(requireAuth, requireAdmin);
@@ -136,6 +137,7 @@ router.post("/bank-changes/:changeId/:decision", asyncRoute(async (req, res) => 
   const changeId = v.id(req.params.changeId, "change");
   const decision = v.oneOf(req.params.decision, ["approve", "reject", "cancel"], "Decision", { required: true });
   const note = v.text(req.body?.note, "Note", { max: 1000 });
+  let toReissue = 0;
   const result = await inTransaction(pool, async (client) => {
     const { rows } = await client.query("SELECT * FROM bank_account_changes WHERE id = $1 FOR UPDATE", [changeId]);
     const ch = rows[0];
@@ -157,11 +159,28 @@ router.post("/bank-changes/:changeId/:decision", asyncRoute(async (req, res) => 
          WHERE id = $1`,
         [ch.vehicle_id, ch.bank_name, ch.bank_account_name, ch.bank_iban, ch.bank_swift]
       );
+      // Issued instructions keep the details the investor was given, so a
+      // person must decide to reissue them. Flag every one still being paid.
+      const { rows: stale } = await client.query(
+        `SELECT pi.commitment_id, coalesce(i.display_name, i.legal_name) AS investor_name
+         FROM payment_instructions pi
+         JOIN commitments c ON c.id = pi.commitment_id
+         JOIN investors i ON i.id = c.investor_id
+         WHERE c.vehicle_id = $1 AND pi.voided_at IS NULL AND pi.bank_iban <> $2 AND c.status = 'Active' AND c.stage = 'Funds due'`,
+        [ch.vehicle_id, ch.bank_iban]
+      );
+      for (const s of stale) {
+        await notifyAdmins(client, {
+          type: "bank_change", title: `Reissue payment instructions: ${s.investor_name}`, body: "The receiving account changed, but their instructions still show the old one.",
+          linkView: "commitments", linkId: s.commitment_id, email: true, emailSubject: "RICap: payment instructions need reissuing",
+        });
+      }
+      toReissue = stale.length;
     }
-    await logAudit({ actorId: req.user.id, action: `vehicle.bank_change_${status.toLowerCase()}`, objectType: "vehicle", objectId: ch.vehicle_id, details: { change: changeId }, req }, client);
+    await logAudit({ actorId: req.user.id, action: `vehicle.bank_change_${status.toLowerCase()}`, objectType: "vehicle", objectId: ch.vehicle_id, details: { change: changeId, instructions_to_reissue: toReissue }, req }, client);
     return status;
   });
-  res.json({ status: result });
+  res.json({ status: result, instructions_to_reissue: toReissue });
 }));
 
 // ---------- per-investor visibility ----------

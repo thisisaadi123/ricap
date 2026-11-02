@@ -37,12 +37,12 @@ Tip: use a private window for a second role at the same time.
 - [ ] 0.3 Enter a **wrong code** → "That code isn't right. 4 tries left."
 - [ ] 0.4 Click **Send a new code** straight away → asked to wait 30 seconds. After 30s → new code in Terminal 2; the old one no longer works.
 - [ ] 0.5 Enter the right code → admin **Overview**.
-- [ ] 0.6 **Settings → Users → Invite user**: name "Test Partner", your test email, role Venture Partner → green banner with a copyable invite link (email isn't set up).
+- [ ] 0.6 **Settings → Users → Invite admin**: name "Test Admin", your test email → green banner with a copyable invite link (email isn't set up).
 - [ ] 0.7 Invite the same email again → "A user with this email already exists."
-- [ ] 0.8 Open the invite link in a private window → "Welcome, Test Partner"; a short password (under 10 characters) is refused; mismatched passwords are refused; a good password → "Your password is set".
+- [ ] 0.8 Open the invite link in a private window → "Welcome, Test Admin"; a short password (under 10 characters) is refused; mismatched passwords are refused; a good password → "Your password is set".
 - [ ] 0.9 Open the same link again → "This invite link has expired or was already used."
-- [ ] 0.10 Sign in as Test Partner (code from Terminal 2) → partner screens ("My investors").
-- [ ] 0.11 As admin, **Suspend** Test Partner → in the partner's window, any click sends them back to sign-in ("Your session has ended"). Signing in again → "This account is suspended." **Reactivate** → can sign in again.
+- [ ] 0.10 Sign in as Test Admin (code from Terminal 2) → admin **Overview**.
+- [ ] 0.11 As admin, **Suspend** Test Admin → in their window, any click sends them back to sign-in ("Your session has ended"). Signing in again → "This account is suspended." **Reactivate** → can sign in again.
 - [ ] 0.12 Admin can't suspend themselves (no Suspend button on your own row).
 - [ ] 0.13 Sign-in page → **Forgot your password?** for investor@ricap.demo → same message whether or not the email exists; reset link in Terminal 2 → set a new password → sign in with it. (Use the new password from now on.)
 - [ ] 0.14 **Settings → Audit log** shows sign-ins, the failed attempts, invite, suspension and reset.
@@ -76,7 +76,7 @@ Tip: use a private window for a second role at the same time.
 
 - [ ] 2.1 Admin → Investors → Gulf Ventures LLC → **KYC tab → Open KYC checklist** → you land on the KYC file with 7 entity items. Terminal 2 shows an email to any contact with a login.
 - [ ] 2.2 Invite Gulf's contact to the portal (Contacts tab), accept the invite, sign in as them → **KYC** page lists the 7 items as "Needed".
-- [ ] 2.3 Upload a PDF for one item → status Received. Try **Submit to RIV** → disabled ("6 required documents still needed"). Try uploading an .exe or a file over 10 MB → refused.
+- [ ] 2.3 Upload a PDF for one item → status Received. Try **Submit to RIV** → disabled ("6 required documents still needed"). Try uploading an .exe or a file over 4 MB → refused.
 - [ ] 2.4 Upload the rest → **Submit to RIV** → "RIV is reviewing". Uploads are now paused.
 - [ ] 2.5 Admin → **KYC → Waiting for review** → open Gulf → **Record decision: Cleared** → refused with a list (verify items, PEP, sanctions, risk, classification, beneficial owner).
 - [ ] 2.6 **Reject** one item without a note → refused; with a note → "Sent back". Decision **Information requested** with a note.
@@ -197,6 +197,21 @@ Run M5 first so there are figures to see. After each change, reload and check th
 - [ ] 7.13 **Money position**: expected payments by due date, unreconciled money, invoices and payouts due. Reconcile something on the Money page and it leaves the list.
 - [ ] 7.14 Partner lands on **Dashboard**: investors, committed, received, payouts, their commitments, and open vehicles with teasers. They see only their own investors.
 - [ ] 7.15 Investor **Home**: **Actions needed** lists KYC, documents to sign, soft commitments and payments due, and each opens the right page. **My holdings** shows committed, paid and outstanding; Fund shows as soft commitment. With nothing to do, it says so.
+
+## Bug-fix checks
+
+- [ ] B.1 Withdraw or hold a commitment at Funds due: the investor no longer sees the bank details. Resume it: they come back.
+- [ ] B.2 Vehicles → change the receiving account (two admins) with a commitment at Funds due: admins get an alert, Money position says "Old bank account: reissue", and the commitment asks you to void and reissue.
+- [ ] B.3 IB investor who has paid the startup: Home shows nothing outstanding.
+- [ ] B.4 On an oversubscribed IB deal, partner payouts never add up to more than 100% of the sweat value.
+- [ ] B.5 Mark a partner's investor as a duplicate: the partner's alert just says "not accepted".
+- [ ] B.6 Add "Acme LLC." then "Acme LLC", or the same Arabic name twice: the duplicate warning appears.
+- [ ] B.7 Settings → Users only invites admins. Partners and investors are invited from their own records.
+- [ ] B.8 Reset a password while signed in elsewhere: the other session is signed out.
+- [ ] B.9 An On hold commitment: choose Dropped and Apply. It works.
+- [ ] B.10 Commitment → Documents: change **Visible to**. The investor's Documents page follows it. Executed agreements, NDAs and term sheets are shared with the investor by default.
+- [ ] B.11 Upload a file with an Arabic name: the name stays right when downloaded. A file over 4 MB is refused with a clear message.
+- [ ] B.12 Investor changes their name in Profile: the top bar updates straight away.
 
 ## Not built yet (don't test)
 

@@ -21,14 +21,15 @@ function vatFor(amount, vatPct) {
 }
 
 // IB consideration on one placement: the cash fee on its capital, plus the
-// placement's share of the deal's sweat-equity value. The share is capital
-// placed / RIV's allocation (or the round), capped at 100%, so it can't
-// change as other investors join later.
-function ibConsideration(deal, capital) {
+// placement's share of the deal's sweat-equity value. The share is capital /
+// RIV's allocation (or the round); if the deal is oversubscribed, capital /
+// everything placed, so shares never add up to more than 100%. Payouts
+// already earned keep their share, and the rest can't go past what's left.
+function ibConsideration(deal, capital, { totalCapital = 0, sweatUsed = 0 } = {}) {
   const cash = round2((Number(capital) * Number(deal.fee_pct)) / 100);
   const sweatTotal = (Number(deal.sweat_equity_pct) / 100) * Number(deal.pre_money_valuation);
-  const allocation = Number(deal.riv_allocation || deal.round_size);
-  const sweat = round2(sweatTotal * Math.min(1, Number(capital) / allocation));
+  const base = Math.max(Number(deal.riv_allocation || deal.round_size), Number(totalCapital), Number(capital));
+  const sweat = round2(Math.min((sweatTotal * Number(capital)) / base, Math.max(0, sweatTotal - Number(sweatUsed))));
   return { cash, sweat, basis: round2(cash + sweat) };
 }
 
@@ -36,7 +37,17 @@ async function computeTerms(db, c, partner) {
   if (c.flow === "IB") {
     const { rows } = await db.query("SELECT * FROM ib_deals WHERE vehicle_id = $1", [c.vehicle_id]);
     const capital = c.funds_transferred_amount ?? c.committed_amount ?? c.indicative_amount;
-    const k = ibConsideration(rows[0], capital);
+    const { rows: totals } = await db.query(
+      `SELECT coalesce(sum(coalesce(funds_transferred_amount, committed_amount, indicative_amount)), 0) AS total
+       FROM commitments WHERE vehicle_id = $1 AND status IN ('Active', 'On hold')`,
+      [c.vehicle_id]
+    );
+    const { rows: used } = await db.query(
+      `SELECT coalesce(sum(sweat_value_part), 0) AS used FROM partner_payouts
+       WHERE vehicle_id = $1 AND commitment_id <> $2 AND status IN ('Earned', 'Approved', 'Paid')`,
+      [c.vehicle_id, c.id]
+    );
+    const k = ibConsideration(rows[0], capital, { totalCapital: totals[0].total, sweatUsed: used[0].used });
     return { basis: k.basis, cash: k.cash, sweat: k.sweat, pct: Number(partner.payout_ib_pct) };
   }
   const pct = Number(c.flow === "HoldCo" ? partner.payout_holdco_pct : partner.payout_fund_pct);

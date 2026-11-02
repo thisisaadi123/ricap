@@ -62,8 +62,10 @@ function date(value, label, { required = false } = {}) {
     if (required) throw httpError(400, `${label} is required.`);
     return null;
   }
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value)) || Number.isNaN(Date.parse(value))) {
-    throw httpError(400, `${label} must be a date (YYYY-MM-DD).`);
+  // The round trip catches impossible dates such as 2026-02-31.
+  const parsed = new Date(`${value}T00:00:00Z`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value)) || Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== String(value)) {
+    throw httpError(400, `${label} must be a real date (YYYY-MM-DD).`);
   }
   return String(value);
 }
@@ -74,7 +76,7 @@ function bool(value) {
 
 function id(value, label = "id") {
   const n = Number(value);
-  if (!Number.isInteger(n) || n <= 0) throw httpError(400, `Invalid ${label}.`);
+  if (!Number.isInteger(n) || n <= 0 || n > 2147483647) throw httpError(400, `Invalid ${label}.`);
   return n;
 }
 

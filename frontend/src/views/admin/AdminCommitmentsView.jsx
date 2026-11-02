@@ -53,6 +53,9 @@ function NewCommitmentModal({ presetVehicleId, onClose, onCreated }) {
 }
 
 // ---------- workspace pieces ----------
+// Evidence for these stages is the investor's own paperwork, so they can see it.
+const SHARED_EVIDENCE = ["Offer documents issued", "Fully executed", "Shares issued", "NDA signed", "Term sheet", "Definitive documents signed", "Closed"];
+
 function EligibilityCard({ data, run }) {
   const { eligibility, commitment: c } = data;
   const minCheck = eligibility.checks.find((x) => x.key === "minimum");
@@ -68,7 +71,7 @@ function EligibilityCard({ data, run }) {
           <div>{x.label}{x.detail && <div><Muted>{x.detail}</Muted></div>}</div>
         </div>
       ))}
-      {c.stage === "Intent" && minCheck && !minCheck.ok && c.status === "Active" && (
+      {c.status === "Active" && minCheck && !c.min_override_reason && (c.stage === "Intent" ? !minCheck.ok : !c.committed_amount && minCheck.label.startsWith("At least")) && (
         <GhostButton style={{ marginTop: 10, padding: "6px 10px", fontSize: 12 }} onClick={() => {
           const reason = window.prompt("Why may this commitment go below the minimum ticket? This is logged.");
           if (reason) run(() => api.overrideMinimum(c.id, reason), "Minimum overridden.");
@@ -127,7 +130,7 @@ function NextStepCard({ data, run, setError }) {
           </div>
           <FileButton label={e.met ? "Add another" : "Upload"} onFile={(f) => run(() => api.uploadDocument(f, {
             linked_type: "commitment", linked_id: c.id, doc_type: e.doc_type, evidence_stage: next, title: e.label,
-            confidentiality: ["Offer documents issued", "Shares issued"].includes(next) ? "Shareable with investor" : "Internal",
+            confidentiality: SHARED_EVIDENCE.includes(next) ? "Shareable with investor" : "Internal",
             signature_status: next === "Offer documents issued" ? "Sent" : next === "Fully executed" ? "Fully executed" : "Not required",
           }), `${e.label} uploaded.`)} />
         </div>
@@ -169,6 +172,7 @@ function PaymentsCard({ data, run }) {
           <div style={{ marginTop: 14, padding: 12, borderRadius: 10, background: BRAND.cream, fontSize: 12.5 }}>
             <strong>Live instructions</strong> · {usd(live.amount)} due {dateStr(live.due_date)} · ref {live.reference}
             <div><Muted>{live.bank_name} · {live.bank_iban} · issued by {live.issued_by_name} {dateTimeStr(live.issued_at)}</Muted></div>
+            {c.stage === "Funds due" && c.bank_iban && live.bank_iban !== c.bank_iban && <div style={{ color: BRAND.coralDark, marginTop: 6 }}>The receiving account has changed since these were issued. Void them and issue new ones.</div>}
             {c.stage === "Funds due" && <GhostButton style={{ marginTop: 8, padding: "5px 10px", fontSize: 12 }} onClick={() => { const reason = window.prompt("Why void these instructions?"); if (reason) run(() => api.voidInstructions(c.id, live.id, reason), "Instructions voided. Issue new ones."); }}>Void instructions</GhostButton>}
           </div>
         )}
@@ -275,11 +279,12 @@ function ExitControls({ c, run }) {
     return <GhostButton onClick={() => { const note = window.prompt("Why reopen it? This is logged."); if (note) run(() => api.reopenCommitment(c.id, note), "Reopened."); }}>Reopen</GhostButton>;
   }
   const options = EXIT_STATUSES.filter((s) => s !== c.status);
+  const chosen = options.includes(status) ? status : options[0];
   return (
     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
       {c.status === "On hold" && <GhostButton onClick={() => { const note = window.prompt("Note for taking it off hold"); if (note) run(() => api.reopenCommitment(c.id, note), "Back to active."); }}>Resume</GhostButton>}
-      <Select style={{ width: 140, padding: "7px 8px", fontSize: 12.5 }} value={status} onChange={setStatus} options={options} />
-      <GhostButton onClick={() => { const reason = window.prompt(`Reason for "${status}"`); if (reason) run(() => api.exitCommitment(c.id, status, reason), `Marked ${status.toLowerCase()}.`); }}>Apply</GhostButton>
+      <Select style={{ width: 140, padding: "7px 8px", fontSize: 12.5 }} value={chosen} onChange={setStatus} options={options} />
+      <GhostButton onClick={() => { const reason = window.prompt(`Reason for "${chosen}"`); if (reason) run(() => api.exitCommitment(c.id, chosen, reason), `Marked ${chosen.toLowerCase()}.`); }}>Apply</GhostButton>
     </div>
   );
 }

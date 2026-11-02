@@ -64,7 +64,7 @@ router.post("/login", async (req, res, next) => {
   try {
     const email = normalizeEmail(req.body?.email);
     const password = req.body?.password;
-    if (!email || !password) return res.status(400).json({ error: "Email and password are required." });
+    if (!email || !password || typeof password !== "string") return res.status(400).json({ error: "Email and password are required." });
     if (!hit(`login:${req.ip}:${email}`, { limit: 10, windowMs: FIFTEEN_MINUTES })) {
       return res.status(429).json({ error: "Too many sign-in attempts. Please wait 15 minutes and try again." });
     }
@@ -258,7 +258,8 @@ router.post("/reset", async (req, res, next) => {
       return res.status(404).json({ error: "This reset link has expired or was already used. Please request a new one." });
     }
     await client.query("UPDATE password_resets SET used_at = now() WHERE user_id = $1 AND used_at IS NULL", [reset.user_id]);
-    await client.query("UPDATE users SET password_hash = $1, updated_at = now() WHERE id = $2", [bcrypt.hashSync(req.body.password, 10), reset.user_id]);
+    await client.query("UPDATE users SET password_hash = $1, sessions_valid_from = now(), updated_at = now() WHERE id = $2", [bcrypt.hashSync(req.body.password, 10), reset.user_id]);
+    await client.query("UPDATE login_codes SET used_at = now() WHERE user_id = $1 AND used_at IS NULL", [reset.user_id]);
     await logAudit({ actorId: reset.user_id, action: "auth.password_reset", objectType: "user", objectId: reset.user_id, req }, client);
     await client.query("COMMIT");
     res.json({ ok: true });

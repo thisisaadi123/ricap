@@ -56,7 +56,7 @@ export function InvestorOpportunitiesView({ onOpenInvestment }) {
       <ErrorBanner text={error} />
       <SuccessBanner text={success} />
       {!opps.length ? <EmptyState icon={Briefcase} title="Nothing open right now" text="New opportunities from RIV will appear here." /> : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(360px, 1fr))", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(360px, 100%), 1fr))", gap: 16 }}>
           {opps.map((o) => (
             <OpportunityCard key={o.id} o={o} setError={setError}>
               {o.my_commitment_id ? (

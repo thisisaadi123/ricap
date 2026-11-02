@@ -22,7 +22,7 @@ async function statementFor(db, investorId, asOf) {
     const payments = receipts.filter((m) => m.commitment_id === c.id);
     // IB investors pay the startup directly (MON-1), so RIV records the
     // transferred amount rather than receipts.
-    const transferred = c.flow === "IB" && c.funds_transferred_date && new Date(c.funds_transferred_date) <= new Date(asOf) ? Number(c.funds_transferred_amount || 0) : 0;
+    const transferred = c.flow === "IB" && c.funds_transferred_date && String(c.funds_transferred_date).slice(0, 10) <= asOf ? Number(c.funds_transferred_amount || 0) : 0;
     const paid = payments.reduce((s, m) => s + Number(m.amount), 0) + transferred;
     const committed = c.committed_amount === null ? null : Number(c.committed_amount);
     return {

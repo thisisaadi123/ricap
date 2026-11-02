@@ -14,9 +14,13 @@ function domainOf(email) {
   return d && !FREE_DOMAINS.has(d) ? d : null;
 }
 
+// Lower case with punctuation and extra spaces removed, in any script, so
+// "Acme LLC." matches "Acme LLC" and Arabic names can match. NORM_SQL must do
+// the same thing as norm().
 function norm(s) {
-  return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  return String(s || "").toLowerCase().replace(/[\s!-\/:-@\[-`{-~]+/g, " ").trim();
 }
+const NORM_SQL = (col) => `btrim(regexp_replace(lower(${col}), '[[:space:][:punct:]]+', ' ', 'g'))`;
 
 // Returns [{ id, legal_name, company, registration_status, partner_name, reasons: [...] }].
 async function findDuplicates({ investorId = null, legalName, company, emails = [] }, db = pool) {
@@ -33,8 +37,8 @@ async function findDuplicates({ investorId = null, legalName, company, emails = 
      WHERE ($1::int IS NULL OR i.id <> $1)
        AND i.registration_status <> 'Duplicate'
        AND (
-         regexp_replace(lower(i.legal_name), '[^a-z0-9]+', ' ', 'g') = ANY($2)
-         OR regexp_replace(lower(coalesce(i.company, '')), '[^a-z0-9]+', ' ', 'g') = ANY($2)
+         ${NORM_SQL("i.legal_name")} = ANY($2)
+         OR ${NORM_SQL("coalesce(i.company, '')")} = ANY($2)
          OR c.email = ANY($3)
          OR split_part(c.email, '@', 2) = ANY($4)
        )
@@ -53,4 +57,4 @@ async function findDuplicates({ investorId = null, legalName, company, emails = 
   });
 }
 
-module.exports = { findDuplicates, domainOf };
+module.exports = { findDuplicates, domainOf, norm };

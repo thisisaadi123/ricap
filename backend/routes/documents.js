@@ -171,6 +171,16 @@ adminRouter.post("/:id/void", asyncRoute(async (req, res) => {
     if (!doc) throw httpError(404, "Document not found.");
     await assertCanTouch(req.user.id, doc);
     if (doc.voided_at) throw httpError(400, "Already voided.");
+    // A cleared KYC must keep its evidence. Replacing it means a new review.
+    if (doc.linked_type === "kyc_item") {
+      const { rows: blocked } = await client.query(
+        `SELECT 1 FROM kyc_items it JOIN kyc_files f ON f.id = it.kyc_file_id
+         WHERE it.id = $1 AND it.required AND f.status = 'Cleared' AND f.is_current
+           AND NOT EXISTS (SELECT 1 FROM documents d WHERE d.linked_type = 'kyc_item' AND d.linked_id = it.id AND d.voided_at IS NULL AND d.id <> $2)`,
+        [doc.linked_id, id]
+      );
+      if (blocked[0]) throw httpError(400, "This is the only document for a required item on a cleared KYC. Open a KYC refresh instead of voiding it.");
+    }
     const { rows: updated } = await client.query(
       "UPDATE documents SET voided_at = now(), voided_by = $2, void_reason = $3 WHERE id = $1 RETURNING *",
       [id, req.user.id, reason]

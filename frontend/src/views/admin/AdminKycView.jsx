@@ -7,7 +7,7 @@ import { BRAND, FONT, MUTED } from "../../brand.js";
 import { CLASSIFICATIONS, KYC_COLORS, KYC_ITEM_COLORS, PEP_STATUSES, RISK_COLORS, RISK_RATINGS, SANCTIONS_RESULTS } from "../../constants.js";
 import {
   Card, DataTable, EmptyState, ErrorBanner, Field, GhostButton, PrimaryButton, Spinner, StatusBadge, SuccessBanner,
-  cellStyle, dateStr, inputStyle, useSuccessMessage,
+  cellStyle, dateStr, inputStyle, todayStr, useSuccessMessage,
 } from "../../components/ui.jsx";
 import { DocLink, FileButton, Muted, Row, SectionTitle, Select, Tabs, uploadedLine } from "../../components/forms.jsx";
 
@@ -130,7 +130,7 @@ export function AdminKycFile({ fileId, onBack, onOpenFile }) {
   if (!data || !screening) return error ? <ErrorBanner text={error} /> : <Spinner />;
   const { file, items, ubos, history } = data;
   const editable = file.is_current && OPEN.includes(file.status);
-  const expired = file.status === "Cleared" && file.refresh_due && new Date(file.refresh_due) < new Date(new Date().toDateString());
+  const expired = file.status === "Cleared" && file.refresh_due && String(file.refresh_due).slice(0, 10) < todayStr();
   const set = (k) => (val) => setScreening((s) => ({ ...s, [k]: val }));
   const required = items.filter((i) => i.required);
   const verified = required.filter((i) => i.status === "Verified").length;

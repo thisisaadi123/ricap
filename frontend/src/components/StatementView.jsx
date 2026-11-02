@@ -4,7 +4,7 @@
 import React, { useEffect, useState } from "react";
 import { Printer, ScrollText } from "lucide-react";
 import { BRAND, MUTED } from "../brand.js";
-import { Card, DataTable, EmptyState, ErrorBanner, Field, GhostButton, Spinner, cellStyle, dateStr, inputStyle, usd } from "./ui.jsx";
+import { Card, DataTable, EmptyState, ErrorBanner, Field, GhostButton, Spinner, cellStyle, dateStr, inputStyle, todayStr, usd } from "./ui.jsx";
 import { Muted } from "./forms.jsx";
 
 const PRINT_CSS = `
@@ -16,7 +16,7 @@ const PRINT_CSS = `
 `;
 
 export function StatementView({ load }) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayStr();
   const [asOf, setAsOf] = useState(today);
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
@@ -42,7 +42,7 @@ export function StatementView({ load }) {
             <div style={{ fontWeight: 700, fontSize: 15 }}>Account statement: {data.investor_name}</div>
             <Muted>As of {dateStr(data.as_of)}. Amounts in USD. Issued by Retail Innovation Ventures.</Muted>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12, marginBottom: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(180px, 100%), 1fr))", gap: 12, marginBottom: 14 }}>
             {[["Committed", data.totals.committed], ["Paid", data.totals.paid], ["Outstanding", data.totals.outstanding]].map(([label, value]) => (
               <Card key={label} style={{ padding: 14 }}><Muted>{label}</Muted><div style={{ fontSize: 20, fontWeight: 700, marginTop: 2 }}>{usd(value)}</div></Card>
             ))}

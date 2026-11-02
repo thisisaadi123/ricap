@@ -155,9 +155,18 @@ export function DataTable({ columns, children }) {
 }
 export const cellStyle = { padding: "12px 14px", borderBottom: `1px solid ${BRAND.line}`, verticalAlign: "middle" };
 
+// Today as YYYY-MM-DD in the viewer's time zone.
+export function todayStr() {
+  return new Date().toLocaleDateString("en-CA");
+}
+
+// Plain dates ("2030-01-01") are read as that calendar day wherever the viewer
+// is; new Date() would read them as midnight UTC.
 export function dateStr(d) {
   if (!d) return "—";
-  return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  const plain = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(d));
+  const date = plain ? new Date(Number(plain[1]), Number(plain[2]) - 1, Number(plain[3])) : new Date(d);
+  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 export function dateTimeStr(d) {
   if (!d) return "—";

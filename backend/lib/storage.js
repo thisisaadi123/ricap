@@ -104,7 +104,8 @@ async function downloadUrl(key, filename) {
   if (driverName() === "s3") {
     const { GetObjectCommand } = require("@aws-sdk/client-s3");
     const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
-    const disposition = `attachment; filename="${filename.replace(/["\\\r\n]/g, "_")}"`;
+    const ascii = filename.replace(/[^\x20-\x7e]/g, "_").replace(/["\\]/g, "_");
+    const disposition = `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(filename)}`;
     return getSignedUrl(s3Client(), new GetObjectCommand({ Bucket: bucket(), Key: key, ResponseContentDisposition: disposition }), { expiresIn: LINK_TTL_SECONDS });
   }
   return `/api/files/${makeFileToken(key, filename)}`;

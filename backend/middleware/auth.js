@@ -35,12 +35,17 @@ async function requireAuth(req, res, next) {
 
   try {
     const { rows } = await pool.query(
-      "SELECT id, email, name, role, status, company FROM users WHERE id = $1",
+      "SELECT id, email, name, role, status, company, sessions_valid_from FROM users WHERE id = $1",
       [payload.id]
     );
     const user = rows[0];
     if (!user || user.status !== "active") {
       return res.status(401).json({ error: "This account is not active. Please contact RIV." });
+    }
+    // iat is in whole seconds, so compare whole seconds: a sign-in right after
+    // a password reset still counts.
+    if (user.sessions_valid_from && payload.iat < Math.floor(new Date(user.sessions_valid_from).getTime() / 1000)) {
+      return res.status(401).json({ error: "Session expired. Please sign in again." });
     }
     req.user = { id: user.id, email: user.email, name: user.name, role: user.role, company: user.company };
     next();

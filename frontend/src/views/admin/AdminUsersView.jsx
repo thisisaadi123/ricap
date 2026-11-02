@@ -32,7 +32,7 @@ export function InviteLinkNotice({ link }) {
 }
 
 function InviteUserModal({ onClose, onInvited }) {
-  const [form, setForm] = useState({ name: "", email: "", role: "investor", company: "" });
+  const [form, setForm] = useState({ name: "", email: "", role: "admin", company: "Retail Innovation Ventures" });
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -50,7 +50,7 @@ function InviteUserModal({ onClose, onInvited }) {
   }
 
   return (
-    <Modal title="Invite a user" onClose={onClose}>
+    <Modal title="Invite an admin" onClose={onClose}>
       <form onSubmit={submit}>
         <ErrorBanner text={error} />
         <Field label="Full name" required>
@@ -59,18 +59,11 @@ function InviteUserModal({ onClose, onInvited }) {
         <Field label="Email" required>
           <input style={inputStyle} type="email" value={form.email} onChange={set("email")} required />
         </Field>
-        <Field label="Role" required>
-          <select style={inputStyle} value={form.role} onChange={set("role")}>
-            <option value="investor">Investor</option>
-            <option value="partner">Venture Partner</option>
-            <option value="admin">RIV Admin</option>
-          </select>
-        </Field>
         <Field label="Company" hint="Optional.">
           <input style={inputStyle} value={form.company} onChange={set("company")} />
         </Field>
         <div style={{ fontFamily: FONT, fontSize: 12, color: MUTED, marginBottom: 16, lineHeight: 1.55 }}>
-          They'll get an email with a one-time link (valid 72 hours) to set their password.
+          They'll get an email with a one-time link (valid 72 hours) to set their password. Invite venture partners from the Partners page and investors from their contacts on the Investors page.
         </div>
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
           <GhostButton onClick={onClose}>Cancel</GhostButton>
@@ -143,14 +136,14 @@ export function AdminUsersView({ currentUser }) {
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
-        <PrimaryButton icon={UserPlus} onClick={() => setShowInvite(true)}>Invite user</PrimaryButton>
+        <PrimaryButton icon={UserPlus} onClick={() => setShowInvite(true)}>Invite admin</PrimaryButton>
       </div>
       <ErrorBanner text={error} />
       <SuccessBanner text={success} />
       <InviteLinkNotice link={inviteLink} />
 
       {!users ? <Spinner /> : users.length === 0 ? (
-        <EmptyState icon={Users} title="No users yet" text="Invite your first venture partner or investor." />
+        <EmptyState icon={Users} title="No users yet" text="Invite your first admin." />
       ) : (
         <DataTable columns={["Name", "Email", "Role", "Status", "Last sign-in", "Added", ""]}>
           {users.map((u) => (

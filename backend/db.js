@@ -15,6 +15,11 @@ const pg = require("pg");
 
 const { Pool } = pg;
 
+// DATE columns stay plain "YYYY-MM-DD" strings. Turning them into Date objects
+// moves them to midnight in the server's time zone, so viewers behind that
+// zone would see the day before.
+pg.types.setTypeParser(pg.types.builtins.DATE, (value) => value);
+
 // Same Supabase-vs-local SSL auto-detection as RISE and RIOS.
 function wantsSsl() {
   if (process.env.PGSSL === "true") return true;

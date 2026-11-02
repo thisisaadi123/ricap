@@ -94,7 +94,7 @@ export function PartnerInvestorsView() {
     <div>
       <ErrorBanner text={error} />
       <SuccessBanner text={success} />
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 14, marginBottom: 18 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(200px, 100%), 1fr))", gap: 14, marginBottom: 18 }}>
         <Card style={{ padding: 16 }}><Muted>Approved investors</Muted><div style={{ fontSize: 24, fontWeight: 700, marginTop: 4 }}>{investors ? approved : "–"}</div></Card>
         <Card style={{ padding: 16 }}><Muted>Waiting for RIV</Muted><div style={{ fontSize: 24, fontWeight: 700, marginTop: 4 }}>{investors ? pending : "–"}</div></Card>
         {me && (

@@ -9,6 +9,7 @@ const { asyncRoute, httpError, inTransaction } = require("../lib/http.js");
 const v = require("../lib/validate.js");
 const { parseCsv } = require("../lib/csv.js");
 const { logAudit } = require("../lib/audit.js");
+const { norm } = require("../lib/duplicates.js");
 
 const router = express.Router();
 router.use(requireAuth, requireAdmin, express.json({ limit: "5mb" }));
@@ -76,7 +77,7 @@ async function planInvestors(rows, db) {
      FROM investors i LEFT JOIN investor_contacts c ON c.investor_id = i.id`
   );
   const ids = new Set(existing.map((e) => e.bigin_id).filter(Boolean));
-  const names = new Set(existing.map((e) => e.name));
+  const names = new Set(existing.map((e) => norm(e.name)));
   const emails = new Set(existing.map((e) => e.email).filter(Boolean));
 
   return rows.map((row, i) => {
@@ -97,10 +98,10 @@ async function planInvestors(rows, db) {
     if (email && !EMAIL_RE.test(email)) return { ...plan, action: "error", issue: `Invalid email "${email}"` };
     if (biginId && ids.has(biginId)) return { ...plan, action: "skip", issue: "Already imported (same Bigin record id)" };
     if (email && emails.has(email)) return { ...plan, action: "skip", issue: "An investor contact with this email already exists" };
-    if (names.has(legalName.toLowerCase())) return { ...plan, action: "skip", issue: "An investor with this name already exists" };
+    if (names.has(norm(legalName))) return { ...plan, action: "skip", issue: "An investor with this name already exists" };
     if (biginId) ids.add(biginId);
     if (email) emails.add(email);
-    names.add(legalName.toLowerCase());
+    names.add(norm(legalName));
     return plan;
   });
 }

@@ -1,6 +1,6 @@
 // RIV admin endpoints. Every route here requires an active admin.
 const { Router } = require("express");
-const { pool, USER_ROLES } = require("../db.js");
+const { pool } = require("../db.js");
 const { requireAuth, requireAdmin } = require("../middleware/auth.js");
 const { createInviteLink } = require("../lib/invites.js");
 const { sendInvite } = require("../lib/email.js");
@@ -38,7 +38,9 @@ router.post("/users", async (req, res, next) => {
     const company = String(req.body?.company || "").trim() || null;
     if (!EMAIL_RE.test(email)) return res.status(400).json({ error: "Enter a valid email address." });
     if (!name) return res.status(400).json({ error: "Name is required." });
-    if (!USER_ROLES.includes(role)) return res.status(400).json({ error: "Choose a role." });
+    // Partners and investors are invited from their own records, which links
+    // the login to them. A login made here would have nothing behind it.
+    if (role !== "admin") return res.status(400).json({ error: "Invite venture partners from the Partners page, and investors from their contacts on the Investors page." });
 
     await client.query("BEGIN");
     const existing = await client.query("SELECT id FROM users WHERE email = $1", [email]);

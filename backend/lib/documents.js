@@ -6,7 +6,9 @@ const { putFile, deleteFile } = require("./storage.js");
 const { hasRestrictedAccess } = require("./identity.js");
 const { isVisible } = require("./visibility.js");
 
-const MAX_BYTES = 10 * 1024 * 1024;
+// Netlify functions take about 6 MB per request, and a file grows by a third
+// on the way in. Matches frontend/src/api.js.
+const MAX_BYTES = 4 * 1024 * 1024;
 const ALLOWED_TYPES = {
   "application/pdf": ".pdf",
   "image/jpeg": ".jpg",
@@ -32,9 +34,12 @@ function receiveFile(req, res, next) {
   uploadOne(req, res, (err) => {
     if (!err) {
       if (!req.file) return next(httpError(400, "Choose a file to upload."));
+      // Browsers send names as UTF-8; multer reads them as Latin-1, which
+      // garbles Arabic and accented names.
+      req.file.originalname = Buffer.from(req.file.originalname, "latin1").toString("utf8");
       return next();
     }
-    if (err.code === "LIMIT_FILE_SIZE") return next(httpError(400, "That file is over 10 MB."));
+    if (err.code === "LIMIT_FILE_SIZE") return next(httpError(400, "That file is over 4 MB."));
     next(err.status ? err : httpError(400, err.message));
   });
 }

@@ -93,7 +93,7 @@ function BankTab({ data, currentUser, reload, setError, showSuccess }) {
           <div style={{ display: "flex", gap: 8 }}>
             {pending.proposed_by !== currentUser.id ? (
               <>
-                <PrimaryButton onClick={() => run(() => api.decideBankChange(pending.id, "approve"), "Account approved and now in use.")}>Approve</PrimaryButton>
+                <PrimaryButton onClick={async () => { let n = 0; await run(async () => { n = (await api.decideBankChange(pending.id, "approve")).instructions_to_reissue; }, "Account approved and now in use."); if (n) showSuccess(`Account approved. ${n} set${n === 1 ? "" : "s"} of live payment instructions still show the old account: void and reissue them.`); }}>Approve</PrimaryButton>
                 <GhostButton onClick={() => { const note = window.prompt("Why reject?"); if (note !== null) run(() => api.decideBankChange(pending.id, "reject", note), "Change rejected."); }}>Reject</GhostButton>
               </>
             ) : (
@@ -207,7 +207,7 @@ export function AdminVehiclesView({ currentUser, onOpenCommitments }) {
   if (!vehicles) return <Spinner />;
   return (
     <div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(420px, 1fr))", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(420px, 100%), 1fr))", gap: 16 }}>
         {vehicles.map((v) => (
           <Card key={v.id} style={{ padding: 20 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>

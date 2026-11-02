@@ -37,7 +37,7 @@ export function PartnerDashboardView({ onNavigate }) {
   return (
     <div>
       <ErrorBanner text={error} />
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(200px, 100%), 1fr))", gap: 14 }}>
         <Stat label="My investors" value={investors.length} sub={`${inReview} with RIV for review`} onClick={() => onNavigate("investors")} />
         <Stat label="Committed" value={usd(committed)} sub={`${live.length} live commitment${live.length === 1 ? "" : "s"}`} onClick={() => onNavigate("commitments")} />
         <Stat label="Received" value={usd(received)} onClick={() => onNavigate("commitments")} />
@@ -63,7 +63,7 @@ export function PartnerDashboardView({ onNavigate }) {
 
       <SectionTitle>Open vehicles and live deals</SectionTitle>
       {!opportunities.length ? <Muted>Nothing open right now.</Muted> : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(340px, 100%), 1fr))", gap: 14 }}>
           {opportunities.map((o) => <OpportunityCard key={o.id} o={o} setError={setError} />)}
         </div>
       )}

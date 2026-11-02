@@ -172,7 +172,7 @@ router.post("/:id/review", asyncRoute(async (req, res) => {
     }
     await logAudit({ actorId: req.user.id, action: `investor.${decision === "approve" ? "approved" : decision === "reject" ? "rejected" : "marked_duplicate"}`, objectType: "investor", objectId: id, details: reason ? { reason } : {}, req }, client);
     await notifyPartner(client, current.partner_id, {
-      type: "investor_review", title: `${current.display_name || current.legal_name}: ${decision === "approve" ? "approved" : decision === "reject" ? "not approved" : "already known to RIV"}`,
+      type: "investor_review", title: `${current.display_name || current.legal_name}: ${decision === "approve" ? "approved" : "not accepted"}`,
       body: decision === "approve" ? "RIV approved this investor." : "RIV reviewed this investor. See My investors for the outcome.", linkView: "investors", email: true,
     });
     return result;

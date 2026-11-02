@@ -8,6 +8,7 @@ const v = require("../lib/validate.js");
 const { logAudit } = require("../lib/audit.js");
 const { receiveFile, saveDocument } = require("../lib/documents.js");
 const E = require("../lib/commitments.js");
+const { hasRestrictedAccess } = require("../lib/identity.js");
 const { notifyInvestor, notifyPartner } = require("../lib/notify.js");
 const { refreshPayout, assertNoPaidPayout } = require("../lib/payouts.js");
 
@@ -59,8 +60,12 @@ router.post("/", asyncRoute(async (req, res) => {
 // still needs.
 router.get("/:id", asyncRoute(async (req, res) => {
   const c = await E.loadCommitment(pool, v.id(req.params.id, "commitment"));
+  const restricted = await hasRestrictedAccess(req.user.id);
   const next = E.nextStage(c.flow, c.stage);
   const nextReadiness = next ? await E.readiness(pool, c, next) : null;
+  if (nextReadiness && !restricted) {
+    nextReadiness.evidence = nextReadiness.evidence.map((e) => ({ ...e, documents: e.documents.filter((d) => d.confidentiality !== "Restricted") }));
+  }
   const { rows: payouts } = await pool.query("SELECT id, status, pct, basis_amount, amount, total FROM partner_payouts WHERE commitment_id = $1", [c.id]);
   const [events, notes, documents, instructions, receipts] = await Promise.all([
     pool.query(
@@ -73,7 +78,7 @@ router.get("/:id", asyncRoute(async (req, res) => {
       `SELECT d.id, d.doc_type, d.title, d.filename, d.size_bytes, d.confidentiality, d.signature_status, d.source, d.version,
               d.evidence_stage, d.uploaded_at, d.voided_at, d.void_reason, u.name AS uploaded_by_name
        FROM documents d LEFT JOIN users u ON u.id = d.uploaded_by
-       WHERE d.linked_type = 'commitment' AND d.linked_id = $1 ORDER BY d.uploaded_at DESC`, [c.id]),
+       WHERE d.linked_type = 'commitment' AND d.linked_id = $1 AND ($2 OR d.confidentiality <> 'Restricted') ORDER BY d.uploaded_at DESC`, [c.id, restricted]),
     pool.query(
       `SELECT p.*, u.name AS issued_by_name FROM payment_instructions p LEFT JOIN users u ON u.id = p.issued_by
        WHERE p.commitment_id = $1 ORDER BY p.issued_at DESC`, [c.id]),
@@ -110,6 +115,11 @@ router.patch("/:id", asyncRoute(async (req, res) => {
       // soft commitment is confirmed.
       if (c.committed_amount || c.soft_confirmed_at) throw httpError(400, "The amount is already fixed for this commitment.");
       f.indicative_amount = v.number(b.indicative_amount, "Indicative amount", { required: true, min: 1, max: 1e12 });
+      // Past Intent nothing re-checks the minimum, so check it here (PRD 7).
+      const min = c.investor_kind === "Individual" ? c.min_ticket_individual : c.min_ticket_entity;
+      if (c.stage !== "Intent" && min && f.indicative_amount < Number(min) && !c.min_override_reason) {
+        throw httpError(400, `USD ${f.indicative_amount.toLocaleString("en-US")} is below the minimum ticket. Override the minimum first.`);
+      }
     }
     if (has("expected_close_date")) f.expected_close_date = v.date(b.expected_close_date, "Expected close date");
     if (has("investor_note")) f.investor_note = v.text(b.investor_note, "Note", { max: 2000 });
@@ -200,6 +210,11 @@ router.post("/:id/reopen", asyncRoute(async (req, res) => {
   await inTransaction(pool, async (client) => {
     const c = await E.loadCommitment(client, id, { lock: true });
     if (c.status === "Active") throw httpError(400, "It's already active.");
+    // A closed vehicle or deal takes no one new. Someone whose money already
+    // moved can still come back, so a mistaken exit can be undone.
+    if (Number(c.received_total) <= 0 && !c.funds_transferred_amount) {
+      await E.assertVehicleOpen(client, { id: c.vehicle_id, name: c.vehicle_name, type: c.vehicle_type, status: c.vehicle_status });
+    }
     try {
       await client.query("UPDATE commitments SET status = 'Active', exit_reason = NULL, updated_at = now(), updated_by = $2 WHERE id = $1", [id, req.user.id]);
     } catch (err) {
@@ -209,6 +224,8 @@ router.post("/:id/reopen", asyncRoute(async (req, res) => {
     await E.recordEvent(client, c, { toStatus: "Active", note: `Reopened: ${note}`, actorId: req.user.id });
     await logAudit({ actorId: req.user.id, action: "commitment.reopened", objectType: "commitment", objectId: id, details: { from: c.status, note }, req }, client);
     await refreshPayout(client, id, { actorId: req.user.id, req });
+    await notifyInvestor(client, c.investor_id, { type: "stage", title: `${c.vehicle_name}: active again`, body: "RIV has reopened this commitment.", linkView: "investments", linkId: id });
+    await notifyPartner(client, c.partner_id, { type: "stage_partner", title: `${c.investor_name}: active again`, body: c.vehicle_name, linkView: "commitments", linkId: id });
   });
   res.json({ commitment: await E.loadCommitment(pool, id) });
 }));

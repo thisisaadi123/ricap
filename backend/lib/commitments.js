@@ -13,6 +13,9 @@ const FLOWS = {
 };
 const FLOW_FOR_VEHICLE = { HoldCo: "HoldCo", Fund: "Fund", "IB Deal": "IB" };
 const EXIT_STATUSES = ["On hold", "Dropped", "Rejected", "Withdrawn"];
+// Stages RICap moves to itself once a payment, instruction or confirmation is
+// recorded. Nobody uploads evidence for these, so they can't have document rules.
+const AUTOMATIC_STAGES = ["Funds due", "Funds received", "Soft commitment confirmed"];
 
 function nextStage(flow, stage) {
   const stages = FLOWS[flow];
@@ -92,7 +95,7 @@ async function evidenceFor(db, c, stage) {
   );
   if (!reqs.length) return [];
   const { rows: docs } = await db.query(
-    `SELECT id, doc_type, title, filename, signature_status, uploaded_at FROM documents
+    `SELECT id, doc_type, title, filename, signature_status, confidentiality, uploaded_at FROM documents
      WHERE linked_type = 'commitment' AND linked_id = $1 AND evidence_stage = $2 AND voided_at IS NULL`,
     [c.id, stage]
   );
@@ -144,7 +147,7 @@ async function extraNeeds(db, c, toStage, body) {
 }
 
 async function readiness(db, c, toStage, body = {}) {
-  const evidence = await evidenceFor(db, c, toStage);
+  const evidence = AUTOMATIC_STAGES.includes(toStage) ? [] : await evidenceFor(db, c, toStage);
   const needs = await extraNeeds(db, c, toStage, body);
   const missingDocs = evidence.filter((e) => !e.met).map((e) => `Upload "${e.label}".`);
   return { evidence, needs: [...missingDocs, ...needs], ready: !missingDocs.length && !needs.length };
@@ -286,7 +289,7 @@ function investorNextAction(c, { instruction } = {}) {
     case "Offer documents issued": return "Sign the Subscription Agreement and Shareholders' Agreement under Documents, and upload the signed copies.";
     case "Signed by investor": return "Thank you. RIV is countersigning.";
     case "Fully executed": return "RIV will send your payment instructions.";
-    case "Funds due": return instruction ? `Pay USD ${outstanding.toLocaleString("en-US", { minimumFractionDigits: 2 })} by ${new Date(instruction.due_date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} using your payment instructions under My investments.` : "RIV will send your payment instructions.";
+    case "Funds due": return instruction ? `Pay USD ${outstanding.toLocaleString("en-US", { minimumFractionDigits: 2 })} by ${new Date(`${String(instruction.due_date).slice(0, 10)}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })} using your payment instructions under My investments.` : "RIV will send your payment instructions.";
     case "Funds received": return "Payment received. RIV is issuing your shares.";
     case "Shares issued":
     case "Active shareholder": return null;
@@ -303,6 +306,6 @@ function investorNextAction(c, { instruction } = {}) {
 }
 
 module.exports = {
-  FLOWS, FLOW_FOR_VEHICLE, EXIT_STATUSES, nextStage, stageIndex, loadCommitment, checkEligibility, evidenceFor,
+  FLOWS, FLOW_FOR_VEHICLE, EXIT_STATUSES, AUTOMATIC_STAGES, assertVehicleOpen, nextStage, stageIndex, loadCommitment, checkEligibility, evidenceFor,
   readiness, advance, recheck, recordEvent, createCommitment, investorNextAction, INVESTOR_ACTIONS,
 };

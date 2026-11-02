@@ -33,6 +33,8 @@ export const FLOWS = {
   Fund: ["Intent", "Eligible", "Soft commitment", "Soft commitment confirmed", "Awaiting Fund launch"],
   IB: ["Intent", "Eligible", "NDA signed", "Diligence", "Term sheet", "Definitive documents signed", "Funds transferred", "Closed"],
 };
+// RICap moves to these by itself, so they can't have document rules.
+export const AUTOMATIC_STAGES = ["Funds due", "Funds received", "Soft commitment confirmed"];
 export function stageLabel(flow, stage) {
   return flow === "IB" && stage === "Intent" ? "Interest expressed" : stage;
 }

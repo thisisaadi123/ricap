@@ -29,7 +29,7 @@ function GroupTitle({ children }) {
 }
 
 function Tiles({ children }) {
-  return <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>{children}</div>;
+  return <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(220px, 100%), 1fr))", gap: 14 }}>{children}</div>;
 }
 
 // Shown instead of a table when a queue is clear: an empty queue is good news.
@@ -77,7 +77,7 @@ function HomeTab({ onNavigate, onOpenLink }) {
   const [error, setError] = useState("");
   useEffect(() => {
     if (days === "") return;
-    api.dashboardHome(days).then(setData).catch((e) => setError(e.message));
+    api.dashboardHome(days).then((r) => { setData(r); setError(""); }).catch((e) => setError(e.message));
   }, [days]);
   if (!data) return error ? <ErrorBanner text={error} /> : <Spinner />;
   const { attention: a, kyc, fees, payouts, outbound, people, headline } = data;
@@ -96,7 +96,7 @@ function HomeTab({ onNavigate, onOpenLink }) {
       </Tiles>
 
       <GroupTitle>Capital position</GroupTitle>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(460px, 1fr))", gap: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(460px, 100%), 1fr))", gap: 14 }}>
         {main.map((v) => <VehicleCapital key={v.id} v={v} onClick={() => onNavigate("vehicles")} />)}
         {deals.map((v) => <VehicleCapital key={v.id} v={v} onClick={() => onNavigate("deals")} />)}
       </div>
@@ -130,7 +130,7 @@ function HomeTab({ onNavigate, onOpenLink }) {
       )}
 
       <GroupTitle>Pipeline by stage</GroupTitle>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(320px, 100%), 1fr))", gap: 14 }}>
         {Object.entries(data.funnel).map(([flow, stages]) => <Funnel key={flow} flow={flow} stages={stages} />)}
       </div>
 
@@ -138,7 +138,7 @@ function HomeTab({ onNavigate, onOpenLink }) {
         <GroupTitle>Stuck commitments</GroupTitle>
         <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, marginTop: 14 }}>
           No stage change for more than
-          <input type="number" min={0} max={3650} style={{ ...inputStyle, width: 76, padding: "6px 8px" }} value={days} onChange={(e) => setDays(e.target.value)} aria-label="Days" />
+          <input type="number" min={0} max={3650} step={1} style={{ ...inputStyle, width: 76, padding: "6px 8px" }} value={days} onChange={(e) => setDays(e.target.value)} aria-label="Days" />
           days
         </label>
       </div>
@@ -157,7 +157,7 @@ function HomeTab({ onNavigate, onOpenLink }) {
 
       <GroupTitle>Fees, payouts and RIV's investments</GroupTitle>
       <Tiles>
-        <Tile label="Fees invoiced" value={usd(fees.invoiced)} sub={`${usd(fees.received)} received · ${usd(fees.overdue)} overdue`} onClick={() => onNavigate("deals")} />
+        <Tile label="Fees invoiced (excl. VAT)" value={usd(fees.invoiced)} sub={`${usd(fees.received)} received · ${usd(fees.overdue)} overdue`} onClick={() => onNavigate("deals")} />
         <Tile label="Payouts earned, not yet paid" value={usd(Number(payouts.earned) + Number(payouts.approved))} sub={`${usd(payouts.paid)} paid · ${usd(payouts.accruing)} accruing`} onClick={() => onNavigate("money")} />
         <Tile label="RIV's investments deployed" value={usd(outbound.deployed)} sub={`${count(outbound.held, "startup")} held · ${outbound.in_progress} in progress`} onClick={() => onNavigate("money")} />
       </Tiles>
@@ -289,7 +289,7 @@ function MoneyTab({ onNavigate, onOpenLink }) {
         <DataTable columns={["Due", "Investor", "Vehicle", "Instructed", "Received", "Outstanding"]}>
           {data.schedule.map((s) => (
             <tr key={s.commitment_id} onClick={() => onOpenLink("commitments", s.commitment_id)} style={{ cursor: "pointer" }}>
-              <td style={{ ...cellStyle, whiteSpace: "nowrap" }}>{dateStr(s.due_date)}{s.days_overdue > 0 && <div><Muted style={{ color: BRAND.coralDark }}>{count(s.days_overdue, "day")} overdue</Muted></div>}</td>
+              <td style={{ ...cellStyle, whiteSpace: "nowrap" }}>{dateStr(s.due_date)}{s.days_overdue > 0 && <div><Muted style={{ color: BRAND.coralDark }}>{count(s.days_overdue, "day")} overdue</Muted></div>}{s.old_account && <div><Muted style={{ color: BRAND.coralDark }}>Old bank account: reissue</Muted></div>}</td>
               <td style={cellStyle}><strong>{s.investor_name}</strong></td>
               <td style={cellStyle}>{s.vehicle_name}</td>
               <td style={cellStyle}>{usd(s.instructed)}</td>

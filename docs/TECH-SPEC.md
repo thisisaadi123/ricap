@@ -119,6 +119,19 @@ Tables follow PRD Section 8. Each milestone adds its own migration file.
 - **Restricted access.** KYC files and counts need `restricted_access`; other admins see the rest.
 - **Partner and investor.** Partner Dashboard and investor Home use their existing portal endpoints. Retail parts of the PRD 6.11 dashboards arrive with M8.
 
+### Rules added by the full bug check
+
+- **Sweat share.** A placement's share is its capital / the larger of RIV's allocation and everything placed on the deal. Earned payouts keep their share, and later ones can't exceed what's left. Accruing figures are estimates until earned.
+- **Bank account changes.** Issued instructions keep the details the investor was given. Approving a change alerts admins for each one still being paid, and Money position marks them until they're voided and reissued.
+- **Reopening.** A commitment on a closed vehicle or deal stays closed unless money already moved.
+- **Automatic stages.** Funds due, Funds received and Soft commitment confirmed can't have document rules.
+- **Logins.** Settings invites admins only. Partners and investors are invited from their records, so a login always has one behind it.
+- **Sessions.** A password reset ends existing sessions and pending sign-in codes (`users.sessions_valid_from`).
+- **Dates.** DATE columns reach the frontend as plain `YYYY-MM-DD` strings; `dateStr` reads them as that calendar day in any time zone.
+- **Uploads.** 4 MB per file, because Netlify functions take about 6 MB per request. Going higher needs direct upload to Supabase Storage.
+- **Downloads.** Documents download through a plain link, not a new tab, because Safari blocks new tabs opened after a server call.
+- **Fees.** Dashboard and deal page both count Sent and Paid invoices, without VAT.
+
 ## 6. Pages by role
 
 | Role | Pages |

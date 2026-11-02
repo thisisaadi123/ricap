@@ -14,9 +14,6 @@ router.use(requireAuth, requireAdmin);
 const LIVE = "c.status IN ('Active', 'On hold')";
 const DEFAULT_STUCK_DAYS = 14;
 const KYC_EXPIRING_DAYS = 60;
-// Stages RICap moves to itself once a payment or instruction is recorded,
-// so nobody signs them off.
-const AUTOMATIC_STAGES = ["Funds due", "Funds received", "Soft commitment confirmed"];
 
 // What's been paid per commitment: receipts into RIV's account, or for IB
 // deals the amount paid straight to the startup (MON-1).
@@ -84,7 +81,8 @@ const SCHEDULE_SQL = `
   SELECT c.id AS commitment_id, coalesce(i.display_name, i.legal_name) AS investor_name, v.id AS vehicle_id, v.name AS vehicle_name,
          pi.due_date, pi.amount AS instructed, ${PAID_SQL} AS received,
          greatest(0, c.committed_amount - ${PAID_SQL}) AS outstanding,
-         greatest(0, current_date - pi.due_date) AS days_overdue
+         greatest(0, current_date - pi.due_date) AS days_overdue,
+         (pi.bank_iban <> v.bank_iban) AS old_account
   FROM payment_instructions pi
   JOIN commitments c ON c.id = pi.commitment_id
   JOIN investors i ON i.id = c.investor_id
@@ -93,10 +91,10 @@ const SCHEDULE_SQL = `
 
 async function fees(db) {
   const { rows } = await db.query(
-    `SELECT coalesce(sum(total) FILTER (WHERE status IN ('Sent', 'Paid')), 0) AS invoiced,
-            coalesce(sum(total) FILTER (WHERE status = 'Paid'), 0) AS received,
-            coalesce(sum(total) FILTER (WHERE status = 'Sent'), 0) AS due,
-            coalesce(sum(total) FILTER (WHERE status = 'Sent' AND due_date < current_date), 0) AS overdue
+    `SELECT coalesce(sum(fee_amount) FILTER (WHERE status IN ('Sent', 'Paid')), 0) AS invoiced,
+            coalesce(sum(fee_amount) FILTER (WHERE status = 'Paid'), 0) AS received,
+            coalesce(sum(fee_amount) FILTER (WHERE status = 'Sent'), 0) AS due,
+            coalesce(sum(fee_amount) FILTER (WHERE status = 'Sent' AND due_date < current_date), 0) AS overdue
      FROM fee_invoices`
   );
   return rows[0];
@@ -150,7 +148,7 @@ async function kycFiles(db) {
 }
 
 router.get("/home", asyncRoute(async (req, res) => {
-  const stuckDays = v.number(req.query.stuck_days, "Days", { min: 0, max: 3650 }) ?? DEFAULT_STUCK_DAYS;
+  const stuckDays = v.number(req.query.stuck_days, "Days", { min: 0, max: 3650, integer: true }) ?? DEFAULT_STUCK_DAYS;
   const restricted = await hasRestrictedAccess(req.user.id);
   const [vehicles, stages, stuckRows, overdue, feeTotals, payouts, partners, attention, outbound, people, kyc] = await Promise.all([
     capital(pool),
@@ -204,7 +202,7 @@ router.get("/compliance", asyncRoute(async (req, res) => {
   for (const { id } of active) {
     const c = await E.loadCommitment(pool, id);
     const next = E.nextStage(c.flow, c.stage);
-    if (!next || AUTOMATIC_STAGES.includes(next)) continue;
+    if (!next || E.AUTOMATIC_STAGES.includes(next)) continue;
     const evidence = await E.evidenceFor(pool, c, next);
     if (evidence.length && evidence.every((e) => e.met)) {
       gates.push({ commitment_id: c.id, investor_name: c.investor_name, vehicle_name: c.vehicle_name, stage: c.stage, next_stage: next });

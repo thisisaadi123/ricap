@@ -104,9 +104,13 @@ router.post("/kyc/submit", asyncRoute(async (req, res) => {
 router.get("/documents", asyncRoute(async (req, res) => {
   const inv = await investorForUser(req.user.id);
   const { rows } = await pool.query(
-    `SELECT id, doc_type, title, filename, signature_status, version, uploaded_at FROM documents
-     WHERE linked_type = 'investor' AND linked_id = $1 AND confidentiality = 'Shareable with investor' AND voided_at IS NULL
-     ORDER BY uploaded_at DESC`,
+    `SELECT d.id, d.doc_type, d.title, d.filename, d.signature_status, d.version, d.uploaded_at, v.name AS vehicle_name
+     FROM documents d
+     LEFT JOIN commitments c ON d.linked_type = 'commitment' AND c.id = d.linked_id
+     LEFT JOIN vehicles v ON v.id = c.vehicle_id
+     WHERE d.confidentiality = 'Shareable with investor' AND d.voided_at IS NULL AND d.source <> 'Investor upload'
+       AND ((d.linked_type = 'investor' AND d.linked_id = $1) OR (d.linked_type = 'commitment' AND c.investor_id = $1))
+     ORDER BY d.uploaded_at DESC`,
     [inv.id]
   );
   res.json({ documents: rows });
@@ -145,7 +149,8 @@ function investorView(c, instruction) {
     id: c.id, flow: c.flow, stage: c.stage, status: c.status, vehicle_id: c.vehicle_id, vehicle_name: c.vehicle_name,
     indicative_amount: c.indicative_amount, committed_amount: c.committed_amount,
     received_total: c.received_total,
-    outstanding: c.committed_amount ? Math.max(0, Number(c.committed_amount) - Number(c.received_total)) : null,
+    // IB investors pay the startup directly, so that counts as paid too.
+    outstanding: c.committed_amount ? Math.max(0, Number(c.committed_amount) - Number(c.received_total) - Number(c.funds_transferred_amount || 0)) : null,
     soft_confirmed_at: c.soft_confirmed_at, shares_issued: c.shares_issued, share_certificate_no: c.share_certificate_no,
     funds_transferred_amount: c.funds_transferred_amount,
     next_action: E.investorNextAction(c, { instruction }),
@@ -210,7 +215,7 @@ router.get("/commitments/:id", asyncRoute(async (req, res) => {
     stages: E.FLOWS[c.flow],
     // Bank details only ever come from RIV's portal-issued instructions
     // (PRD 7); never by email.
-    instruction: instruction && c.stage === "Funds due" ? {
+    instruction: instruction && c.stage === "Funds due" && c.status === "Active" ? {
       amount: instruction.amount, due_date: instruction.due_date, reference: instruction.reference, legal_entity: instruction.legal_entity,
       bank_name: instruction.bank_name, bank_account_name: instruction.bank_account_name, bank_iban: instruction.bank_iban, bank_swift: instruction.bank_swift,
     } : null,

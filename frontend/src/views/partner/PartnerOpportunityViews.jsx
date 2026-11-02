@@ -70,7 +70,7 @@ export function PartnerOpportunitiesView() {
       <ErrorBanner text={error} />
       <SuccessBanner text={success} />
       {!opps.length ? <EmptyState icon={Briefcase} title="Nothing open right now" text="Vehicles and deals RIV opens to partners will appear here." /> : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(360px, 1fr))", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(360px, 100%), 1fr))", gap: 16 }}>
           {opps.map((o) => (
             <OpportunityCard key={o.id} o={o} setError={setError}>
               <PrimaryButton icon={Send} style={{ padding: "8px 14px" }} onClick={() => setProposeFor(o)}>Propose an investor</PrimaryButton>
@@ -97,7 +97,7 @@ export function PartnerCommitmentsView() {
           <td style={cellStyle}>{r.vehicle_name}</td>
           <td style={cellStyle}>{stageLabel(r.flow, r.stage)}{r.status !== "Active" && <div><StatusBadge status={r.status} colors={COMMITMENT_STATUS_COLORS} /></div>}</td>
           <td style={cellStyle}>{usd(r.committed_amount || r.indicative_amount)}{!r.committed_amount && <div><Muted>indicative</Muted></div>}</td>
-          <td style={cellStyle}>{r.flow === "HoldCo" && Number(r.received_total) > 0 ? usd(r.received_total) : <Muted>—</Muted>}</td>
+          <td style={cellStyle}>{Number(r.received_total) > 0 ? usd(r.received_total) : <Muted>—</Muted>}</td>
           <td style={cellStyle}>{dateStr(r.updated_at)}</td>
         </tr>
       ))}

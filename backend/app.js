@@ -77,6 +77,9 @@ app.use((err, req, res, next) => {
   // route didn't catch; report them as 400 rather than a server error.
   if (err.code === "23505") return res.status(409).json({ error: "That would create a duplicate record." });
   if (err.code === "23514" || err.code === "23502") return res.status(400).json({ error: "Some of the values aren't allowed." });
+  if (err.code === "22003") return res.status(400).json({ error: "That number is too large." });
+  if (["22P02", "22007", "22008"].includes(err.code)) return res.status(400).json({ error: "Some of the values aren't valid." });
+  if (err.code === "23503") return res.status(400).json({ error: "That refers to a record that doesn't exist." });
   console.error(err);
   res.status(500).json({ error: "Something went wrong on the server." });
 });

@@ -9,6 +9,7 @@ const v = require("../lib/validate.js");
 const C = require("../lib/constants.js");
 const { logAudit } = require("../lib/audit.js");
 const { receiveFile, saveDocument } = require("../lib/documents.js");
+const { FLOWS, AUTOMATIC_STAGES } = require("../lib/commitments.js");
 
 const router = Router();
 router.use(requireAuth, requireAdmin);
@@ -123,6 +124,9 @@ router.post("/stage-requirements", asyncRoute(async (req, res) => {
   const b = req.body || {};
   const flow = v.oneOf(b.flow, EVIDENCE_FLOWS, "Flow", { required: true });
   const stage = v.text(b.stage, "Stage", { required: true, max: 60 });
+  const stages = flow === "IB deal" ? ["Mandate signed", "Live"] : FLOWS[flow].slice(2);
+  if (!stages.includes(stage)) throw httpError(400, `"${stage}" isn't a stage that can have document rules.`);
+  if (AUTOMATIC_STAGES.includes(stage)) throw httpError(400, `RICap moves to "${stage}" by itself once it's recorded, so it can't have document rules.`);
   const label = v.text(b.label, "What's needed", { required: true, max: 200 });
   const docType = v.oneOf(b.doc_type, C.DOC_TYPES, "Document type", { required: true });
   const { rows } = await pool.query(

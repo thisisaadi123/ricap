@@ -17,7 +17,7 @@ export function PartnerPayoutsView() {
   if (!data) return error ? <ErrorBanner text={error} /> : <Spinner />;
   return (
     <div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 14, marginBottom: 18 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(200px, 100%), 1fr))", gap: 14, marginBottom: 18 }}>
         <Card style={{ padding: 16 }}><Muted>Accruing (estimate)</Muted><div style={{ fontSize: 22, fontWeight: 700, marginTop: 4 }}>{usd(data.totals.accruing)}</div></Card>
         <Card style={{ padding: 16 }}><Muted>Earned, not yet paid</Muted><div style={{ fontSize: 22, fontWeight: 700, marginTop: 4 }}>{usd(data.totals.earned)}</div></Card>
         <Card style={{ padding: 16 }}><Muted>Paid</Muted><div style={{ fontSize: 22, fontWeight: 700, marginTop: 4 }}>{usd(data.totals.paid)}</div></Card>

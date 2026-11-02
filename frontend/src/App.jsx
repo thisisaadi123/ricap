@@ -2,7 +2,7 @@
 // signed-out screens (sign-in, invite, password reset) and the signed-in
 // shell for each role. Views live in ./views; shared UI in ./components.
 import React, { useEffect, useState } from "react";
-import { api, clearSession, getStoredUser, setSessionExpiredHandler } from "./api.js";
+import { api, clearSession, getStoredUser, setSessionExpiredHandler, setStoredUser } from "./api.js";
 import { BRAND, FONT } from "./brand.js";
 import { GlobalStyle, useDisableNumberInputScroll } from "./components/ui.jsx";
 import { NavBar, navItemsFor } from "./components/NavBar.jsx";
@@ -67,6 +67,13 @@ export default function RicapApp() {
     setNotice(message);
   }
 
+  // The stored copy can go stale (a name change, say); the server has the truth.
+  async function refreshUser() {
+    const { user: fresh } = await api.me();
+    setStoredUser(fresh);
+    setUser(fresh);
+  }
+
   function logout(message = "") {
     clearSession();
     setUser(null);
@@ -78,7 +85,7 @@ export default function RicapApp() {
     setSessionExpiredHandler(() => logout("Your session has ended. Please sign in again."));
     // A stored session may have expired or the account may have been
     // suspended since the last visit; check with the server.
-    if (getStoredUser()) api.me().catch(() => logout());
+    if (getStoredUser()) refreshUser().catch(() => logout());
   }, []);
 
   const signedOutScreen = (() => {
@@ -156,7 +163,7 @@ export default function RicapApp() {
         {user.role === "investor" && view === "documents" && <InvestorDocumentsView />}
         {user.role === "investor" && view === "updates" && <InvestorUpdatesView openId={updateId} />}
         {user.role === "investor" && view === "statement" && <InvestorStatementView />}
-        {user.role === "investor" && view === "profile" && <InvestorProfileView />}
+        {user.role === "investor" && view === "profile" && <InvestorProfileView onSaved={() => refreshUser().catch(() => {})} />}
       </div>
     </div>
   );
