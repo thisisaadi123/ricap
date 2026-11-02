@@ -36,7 +36,7 @@ export function CapitalBar({ target, parts }) {
   const t = Number(target) || 0;
   return (
     <div>
-      <div style={{ display: "flex", height: 10, borderRadius: 999, background: "#F3F1EE", overflow: "hidden" }}>
+      <div style={{ display: "flex", gap: 2, height: 10, borderRadius: 999, background: "#F3F1EE", overflow: "hidden" }}>
         {t > 0 && parts.map(([label, amount, color]) => (
           <div key={label} title={`${label}: ${usd(amount)}`} style={{ width: `${Math.min(100, (Number(amount) / t) * 100)}%`, background: color }} />
         ))}

@@ -87,7 +87,7 @@ export const api = {
   resendInvite: (id) => request(`/admin/users/${id}/resend-invite`, { method: "POST" }),
   setUserStatus: (id, status) => request(`/admin/users/${id}/status`, { method: "PATCH", body: { status } }),
   setRestrictedAccess: (id, restricted_access) => request(`/admin/users/${id}/restricted`, { method: "PATCH", body: { restricted_access } }),
-  listAudit: (limit = 200) => request(`/admin/audit?limit=${limit}`),
+  listAudit: (limit = 200, q = "") => request(`/admin/audit${query({ limit, q })}`),
 
   // admin: venture partners (M1)
   listPartners: () => request("/admin/partners"),
@@ -167,6 +167,11 @@ export const api = {
   voidReceipt: (id, rid, reason) => request(`/admin/commitments/${id}/receipts/${rid}/void`, { method: "POST", body: { reason } }),
   softConfirmByEmail: (id, file) => request(`/admin/commitments/${id}/soft-confirm`, { method: "POST", form: formOf(file) }),
   dataRoom: (id, action) => request(`/admin/commitments/${id}/data-room/${action}`, { method: "POST" }),
+
+  // admin: dashboards (M7)
+  dashboardHome: (stuck_days) => request(`/admin/dashboard/home${query({ stuck_days })}`),
+  dashboardCompliance: () => request("/admin/dashboard/compliance"),
+  dashboardMoney: () => request("/admin/dashboard/money"),
 
   // admin: investor updates (M6)
   listUpdates: () => request("/admin/updates"),

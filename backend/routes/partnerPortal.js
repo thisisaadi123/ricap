@@ -100,7 +100,8 @@ router.get("/commitments", asyncRoute(async (req, res) => {
             (c.partner_id = $1) AS credited,
             coalesce(i.display_name, i.legal_name) AS investor_name, v.name AS vehicle_name, v.type AS vehicle_type,
             coalesce((SELECT sum(m.amount) FROM money_movements m
-                      WHERE m.commitment_id = c.id AND m.type = 'Subscription payment' AND m.voided_at IS NULL), 0) AS received_total
+                      WHERE m.commitment_id = c.id AND m.type = 'Subscription payment' AND m.voided_at IS NULL), 0)
+              + coalesce(c.funds_transferred_amount, 0) AS received_total
      FROM commitments c JOIN investors i ON i.id = c.investor_id JOIN vehicles v ON v.id = c.vehicle_id
      WHERE i.partner_id = $1 ORDER BY c.updated_at DESC`,
     [p.id]

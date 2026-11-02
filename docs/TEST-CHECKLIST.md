@@ -1,4 +1,4 @@
-# RICap manual test checklist (M0–M6)
+# RICap manual test checklist (M0–M7)
 
 Work through each section in order: later sections reuse what earlier ones create. Tick each box as you go. Every step says what you should see; if you see something else, note the step number.
 
@@ -178,6 +178,26 @@ Use an investor brought by the demo partner, on the HoldCo. Emails and sign-in c
 - [ ] 6.11 Admin → Investors → an investor → **Statement and updates**: same statement and the list of updates sent.
 - [ ] 6.12 Investor → **Profile**: change phone: saved, KYC unchanged. Change legal name: warning appears; saved; KYC page says what's needed; admin gets an alert that opens the file; the audit log shows old and new names.
 
+## M7 – Dashboards
+
+Run M5 first so there are figures to see. After each change, reload and check the number moved.
+
+- [ ] 7.1 Admin → **Overview → Home**: headline shows investors, live IB deals and current commitments. HoldCo target $2M and Fund target $50M, with committed, received and outstanding.
+- [ ] 7.2 Partner adds an investor: **Registrations to review** goes up; clicking it opens Investors.
+- [ ] 7.3 **Pipeline by stage**: move a commitment forward and its count moves to the next stage.
+- [ ] 7.4 Record a part receipt: received goes up and outstanding goes down. Void it: both go back.
+- [ ] 7.5 **Stuck commitments**: set the box to 0, then 14. Only commitments with no stage change for more than that many days appear; a note doesn't reset it. A fresh commitment takes a day to appear at 0. Clicking a row opens the commitment.
+- [ ] 7.6 **Overdue payments**: issue instructions with a due date, then check after it passes (or use an older demo record). Paying in full removes it.
+- [ ] 7.7 **Fees, payouts and RIV's investments** match the Money page and the deal's invoices.
+- [ ] 7.8 **Partner leaderboard**: registered, committed, sourced and conversion make sense for the demo partner.
+- [ ] 7.9 **Compliance**: upload all documents for a commitment's next stage and it appears under **Stages waiting for sign-off**; advance it and it goes. KYC files show status, age and risk, and clicking opens the file.
+- [ ] 7.10 Change a legal name in an investor's Profile after their commitment is past Eligible: they appear under **Past Eligible without cleared KYC**.
+- [ ] 7.11 Audit trail: search for a person, an action or a payment reference. Typing `%` finds only entries containing `%`.
+- [ ] 7.12 An admin without restricted access sees "needs restricted access" instead of KYC figures.
+- [ ] 7.13 **Money position**: expected payments by due date, unreconciled money, invoices and payouts due. Reconcile something on the Money page and it leaves the list.
+- [ ] 7.14 Partner lands on **Dashboard**: investors, committed, received, payouts, their commitments, and open vehicles with teasers. They see only their own investors.
+- [ ] 7.15 Investor **Home**: **Actions needed** lists KYC, documents to sign, soft commitments and payments due, and each opens the right page. **My holdings** shows committed, paid and outstanding; Fund shows as soft commitment. With nothing to do, it says so.
+
 ## Not built yet (don't test)
 
-Full dashboards (M7), retail intelligence (M8). Zoho Sign is tracked by hand; emails go to Terminal 2 until Resend is configured; files are stored in `backend/storage` until Supabase Storage is configured.
+Retail intelligence, including the retail parts of the dashboards (M8). Zoho Sign is tracked by hand; emails go to Terminal 2 until Resend is configured; files are stored in `backend/storage` until Supabase Storage is configured.

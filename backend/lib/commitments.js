@@ -286,7 +286,7 @@ function investorNextAction(c, { instruction } = {}) {
     case "Offer documents issued": return "Sign the Subscription Agreement and Shareholders' Agreement under Documents, and upload the signed copies.";
     case "Signed by investor": return "Thank you. RIV is countersigning.";
     case "Fully executed": return "RIV will send your payment instructions.";
-    case "Funds due": return instruction ? `Pay USD ${outstanding.toLocaleString("en-US", { minimumFractionDigits: 2 })} by ${new Date(instruction.due_date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} using the payment instructions below.` : "RIV will send your payment instructions.";
+    case "Funds due": return instruction ? `Pay USD ${outstanding.toLocaleString("en-US", { minimumFractionDigits: 2 })} by ${new Date(instruction.due_date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} using your payment instructions under My investments.` : "RIV will send your payment instructions.";
     case "Funds received": return "Payment received. RIV is issuing your shares.";
     case "Shares issued":
     case "Active shareholder": return null;
@@ -304,5 +304,5 @@ function investorNextAction(c, { instruction } = {}) {
 
 module.exports = {
   FLOWS, FLOW_FOR_VEHICLE, EXIT_STATUSES, nextStage, stageIndex, loadCommitment, checkEligibility, evidenceFor,
-  readiness, advance, recheck, recordEvent, createCommitment, investorNextAction,
+  readiness, advance, recheck, recordEvent, createCommitment, investorNextAction, INVESTOR_ACTIONS,
 };

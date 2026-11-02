@@ -133,13 +133,16 @@ router.patch("/users/:id/restricted", async (req, res, next) => {
 router.get("/audit", async (req, res, next) => {
   try {
     const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 500);
+    // Audit trail search (PRD 6.11): who, what, which record, or any detail.
+    const q = String(req.query.q || "").trim().slice(0, 200).replace(/[\\%_]/g, "\\$&");
     const { rows } = await pool.query(
       `SELECT a.id, a.action, a.object_type, a.object_id, a.details, a.ip, a.created_at,
               u.name AS actor_name, u.email AS actor_email
        FROM audit_log a LEFT JOIN users u ON u.id = a.actor_user_id
+       WHERE $2 = '' OR concat_ws(' ', a.action, a.object_type, a.object_id, a.details::text, u.name, u.email) ILIKE '%' || $2 || '%'
        ORDER BY a.created_at DESC, a.id DESC
        LIMIT $1`,
-      [limit]
+      [limit, q]
     );
     res.json({ entries: rows });
   } catch (err) {

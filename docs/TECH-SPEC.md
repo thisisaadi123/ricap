@@ -112,6 +112,13 @@ Tables follow PRD Section 8. Each milestone adds its own migration file.
 - **Statement (`lib/statements.js`).** Worked out from commitments and money records as of a date. It shows current stage and committed figures, with payments up to the date. Indicative HoldCo figures are left out until committed.
 - **Profile.** Contact details change straight away. Legal name or country reopens a Submitted or Cleared KYC file and alerts admins.
 
+### M7 notes
+
+- **Admin dashboards (`routes/dashboards.js`).** Overview has three tabs, all worked out live with no stored totals. Home: headline, capital position, needs attention, overdue payments, pipeline by stage, stuck commitments, fees, payouts, RIV's investments and the partner leaderboard. Compliance: commitments past Eligible without cleared KYC (should stay empty), stages waiting for sign-off, KYC files by status, age and risk, and audit search. Money position: expected and received by vehicle and due date, unreconciled money, invoices and payouts due.
+- **Definitions.** Current commitments: committed, or indicated if nothing is signed. Received: receipts, plus amounts IB investors paid the startup directly. Capital sourced: money actually in. Conversion: funded investors over investors registered. Stuck: no stage or status change for more than N days (14 by default, changeable on the page); notes don't count. Expiring KYC: refresh due within 60 days.
+- **Restricted access.** KYC files and counts need `restricted_access`; other admins see the rest.
+- **Partner and investor.** Partner Dashboard and investor Home use their existing portal endpoints. Retail parts of the PRD 6.11 dashboards arrive with M8.
+
 ## 6. Pages by role
 
 | Role | Pages |

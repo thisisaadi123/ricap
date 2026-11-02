@@ -17,6 +17,7 @@ const commitmentRoutes = require("./routes/commitments.js");
 const dealRoutes = require("./routes/deals.js");
 const moneyRoutes = require("./routes/money.js");
 const updateRoutes = require("./routes/updates.js");
+const dashboardRoutes = require("./routes/dashboards.js");
 const notificationRoutes = require("./routes/notifications.js");
 const { flushEmailsAfterWrites } = require("./lib/notify.js");
 
@@ -52,6 +53,7 @@ app.use("/api/admin/commitments", commitmentRoutes);
 app.use("/api/admin/deals", dealRoutes);
 app.use("/api/admin/money", moneyRoutes);
 app.use("/api/admin/updates", updateRoutes);
+app.use("/api/admin/dashboard", dashboardRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/admin/documents", documentRoutes.adminRouter);
 app.use("/api/admin", adminRoutes);

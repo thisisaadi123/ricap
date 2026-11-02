@@ -19,6 +19,7 @@ export function navItemsFor(role) {
     { id: "settings", label: "Settings" },
   ];
   if (role === "partner") return [
+    { id: "dashboard", label: "Dashboard" },
     { id: "investors", label: "My investors" },
     { id: "opportunities", label: "Opportunities" },
     { id: "commitments", label: "Commitments" },

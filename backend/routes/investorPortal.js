@@ -148,7 +148,9 @@ function investorView(c, instruction) {
     outstanding: c.committed_amount ? Math.max(0, Number(c.committed_amount) - Number(c.received_total)) : null,
     soft_confirmed_at: c.soft_confirmed_at, shares_issued: c.shares_issued, share_certificate_no: c.share_certificate_no,
     funds_transferred_amount: c.funds_transferred_amount,
-    next_action: E.investorNextAction(c, { instruction }), created_at: c.created_at, updated_at: c.updated_at,
+    next_action: E.investorNextAction(c, { instruction }),
+    action_needed: c.status === "Active" && Boolean(E.INVESTOR_ACTIONS[c.stage]) && !(c.flow === "HoldCo" && c.stage === "Funds due" && !instruction),
+    created_at: c.created_at, updated_at: c.updated_at,
   };
 }
 

@@ -22,6 +22,7 @@ import { PartnerUpdatesView } from "./views/partner/PartnerUpdatesView.jsx";
 import { InvestorProfileView, InvestorStatementView, InvestorUpdatesView } from "./views/investor/InvestorUpdateViews.jsx";
 import { AdminSettingsView } from "./views/admin/AdminSettingsView.jsx";
 import { PartnerPayoutsView } from "./views/partner/PartnerPayoutsView.jsx";
+import { PartnerDashboardView } from "./views/partner/PartnerDashboardView.jsx";
 import { PartnerInvestorsView } from "./views/partner/PartnerInvestorsView.jsx";
 import { PartnerCommitmentsView, PartnerOpportunitiesView } from "./views/partner/PartnerOpportunityViews.jsx";
 import { InvestorInvestmentsView, InvestorOpportunitiesView } from "./views/investor/InvestorInvestmentViews.jsx";
@@ -130,7 +131,7 @@ export default function RicapApp() {
       <div style={{ maxWidth: 1160, margin: "0 auto", padding: "28px 24px 60px" }}>
         <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: 20, color: BRAND.ink, marginBottom: 18 }}>{title}</div>
 
-        {user.role === "admin" && view === "overview" && <AdminOverview onNavigate={setView} />}
+        {user.role === "admin" && view === "overview" && <AdminOverview onNavigate={changeView} onOpenLink={openLink} />}
         {user.role === "admin" && view === "partners" && <AdminPartnersView />}
         {user.role === "admin" && view === "investors" && <AdminInvestorsView onOpenKyc={(id) => { setKycFileId(id); setView("kyc"); }} />}
         {user.role === "admin" && view === "kyc" && <AdminKycView openFileId={kycFileId} setOpenFileId={setKycFileId} />}
@@ -141,13 +142,14 @@ export default function RicapApp() {
         {user.role === "admin" && view === "updates" && <AdminUpdatesView />}
         {user.role === "admin" && view === "settings" && <AdminSettingsView currentUser={user} />}
 
+        {user.role === "partner" && view === "dashboard" && <PartnerDashboardView onNavigate={changeView} />}
         {user.role === "partner" && view === "investors" && <PartnerInvestorsView />}
         {user.role === "partner" && view === "opportunities" && <PartnerOpportunitiesView />}
         {user.role === "partner" && view === "commitments" && <PartnerCommitmentsView />}
         {user.role === "partner" && view === "payouts" && <PartnerPayoutsView />}
         {user.role === "partner" && view === "updates" && <PartnerUpdatesView />}
 
-        {user.role === "investor" && view === "home" && <InvestorHome user={user} onNavigate={setView} />}
+        {user.role === "investor" && view === "home" && <InvestorHome user={user} onNavigate={changeView} onOpenInvestment={(id) => openLink("investments", id)} onOpenUpdate={(id) => openLink("updates", id)} />}
         {user.role === "investor" && view === "investments" && <InvestorInvestmentsView openId={investmentId} setOpenId={setInvestmentId} />}
         {user.role === "investor" && view === "opportunities" && <InvestorOpportunitiesView onOpenInvestment={(id) => { setInvestmentId(id); setView("investments"); }} />}
         {user.role === "investor" && view === "kyc" && <InvestorKycView />}
