@@ -103,7 +103,7 @@ function HomeTab({ onNavigate, onOpenLink }) {
 
       <GroupTitle>Needs attention</GroupTitle>
       <Tiles>
-        <Tile label="Registrations to review" value={a.registrations} sub="From venture partners" onClick={() => onNavigate("investors")} highlight={a.registrations > 0} />
+        <Tile label="Registrations to review" value={a.registrations} sub={`${a.pending_investors} investor${a.pending_investors === 1 ? "" : "s"}, ${a.pending_startups} startup${a.pending_startups === 1 ? "" : "s"}`} onClick={() => onNavigate(a.pending_investors > 0 || a.pending_startups === 0 ? "investors" : "referrals")} highlight={a.registrations > 0} />
         <Tile label="KYC waiting for review" value={kyc ? kyc.submitted : "–"} sub={kyc ? `${kyc.expiring} expiring soon, ${kyc.expired} expired` : "Needs restricted access"} onClick={() => onNavigate("kyc")} highlight={kyc && (kyc.submitted > 0 || kyc.expired > 0)} />
         <Tile label="Waiting on eligibility" value={a.waiting_eligibility} sub="KYC or minimum ticket" onClick={() => onNavigate("commitments")} highlight={a.waiting_eligibility > 0} />
         <Tile label="Payments due" value={a.funds_due} sub={`${data.overdue.length} overdue`} onClick={() => onNavigate("commitments")} highlight={data.overdue.length > 0} />

@@ -12,6 +12,7 @@ import { ForgotPasswordView, ResetPasswordView } from "./views/auth/PasswordRese
 import { AdminOverview } from "./views/admin/AdminOverview.jsx";
 import { AdminPartnersView } from "./views/admin/AdminPartnersView.jsx";
 import { AdminInvestorsView } from "./views/admin/AdminInvestorsView.jsx";
+import { AdminStartupReferralsView } from "./views/admin/AdminStartupReferralsView.jsx";
 import { AdminKycView } from "./views/admin/AdminKycView.jsx";
 import { AdminVehiclesView } from "./views/admin/AdminVehiclesView.jsx";
 import { AdminCommitmentsView } from "./views/admin/AdminCommitmentsView.jsx";
@@ -21,9 +22,9 @@ import { AdminUpdatesView } from "./views/admin/AdminUpdatesView.jsx";
 import { PartnerUpdatesView } from "./views/partner/PartnerUpdatesView.jsx";
 import { InvestorProfileView, InvestorStatementView, InvestorUpdatesView } from "./views/investor/InvestorUpdateViews.jsx";
 import { AdminSettingsView } from "./views/admin/AdminSettingsView.jsx";
-import { PartnerPayoutsView } from "./views/partner/PartnerPayoutsView.jsx";
 import { PartnerDashboardView } from "./views/partner/PartnerDashboardView.jsx";
 import { PartnerInvestorsView } from "./views/partner/PartnerInvestorsView.jsx";
+import { PartnerStartupsView } from "./views/partner/PartnerStartupsView.jsx";
 import { PartnerCommitmentsView, PartnerOpportunitiesView } from "./views/partner/PartnerOpportunityViews.jsx";
 import { InvestorInvestmentsView, InvestorOpportunitiesView } from "./views/investor/InvestorInvestmentViews.jsx";
 import { InvestorDocumentsView, InvestorHome, InvestorKycView } from "./views/investor/InvestorViews.jsx";
@@ -54,6 +55,8 @@ export default function RicapApp() {
   const [commitmentVehicle, setCommitmentVehicle] = useState(null);
   const [commitmentId, setCommitmentId] = useState(null);
   const [dealId, setDealId] = useState(null);
+  // Admin Startup referrals tab: the open referral.
+  const [referralId, setReferralId] = useState(null);
   // Investor My investments tab: the open investment.
   const [investmentId, setInvestmentId] = useState(null);
   // Investor Updates tab: the update an alert pointed at.
@@ -117,14 +120,18 @@ export default function RicapApp() {
     setKycFileId(null);
     setCommitmentId(null);
     setDealId(null);
+    setReferralId(null);
     setInvestmentId(null);
     setUpdateId(null);
   }
 
   // An alert was clicked: go to its page and open the record if the page can.
   function openLink(linkView, linkId) {
+    // Partners no longer have a Payouts page; an old payout alert lands on the dashboard.
+    if (user.role === "partner" && linkView === "payouts") linkView = "dashboard";
     changeView(linkView);
     if (!linkId) return;
+    if (linkView === "referrals" && user.role === "admin") setReferralId(linkId);
     if (linkView === "kyc" && user.role === "admin") setKycFileId(linkId);
     if (linkView === "commitments" && user.role === "admin") setCommitmentId(linkId);
     if (linkView === "investments") setInvestmentId(linkId);
@@ -141,6 +148,7 @@ export default function RicapApp() {
         {user.role === "admin" && view === "overview" && <AdminOverview onNavigate={changeView} onOpenLink={openLink} />}
         {user.role === "admin" && view === "partners" && <AdminPartnersView />}
         {user.role === "admin" && view === "investors" && <AdminInvestorsView onOpenKyc={(id) => { setKycFileId(id); setView("kyc"); }} />}
+        {user.role === "admin" && view === "referrals" && <AdminStartupReferralsView openId={referralId} setOpenId={setReferralId} onOpenDeal={(id) => { setDealId(id); setView("deals"); }} />}
         {user.role === "admin" && view === "kyc" && <AdminKycView openFileId={kycFileId} setOpenFileId={setKycFileId} />}
         {user.role === "admin" && view === "vehicles" && <AdminVehiclesView currentUser={user} onOpenCommitments={(id) => { setCommitmentVehicle(id); setCommitmentId(null); setView("commitments"); }} />}
         {user.role === "admin" && view === "deals" && <AdminDealsView openId={dealId} setOpenId={setDealId} onOpenCommitment={(id) => { setCommitmentId(id); setView("commitments"); }} />}
@@ -151,9 +159,9 @@ export default function RicapApp() {
 
         {user.role === "partner" && view === "dashboard" && <PartnerDashboardView onNavigate={changeView} />}
         {user.role === "partner" && view === "investors" && <PartnerInvestorsView />}
+        {user.role === "partner" && view === "startups" && <PartnerStartupsView />}
         {user.role === "partner" && view === "opportunities" && <PartnerOpportunitiesView />}
         {user.role === "partner" && view === "commitments" && <PartnerCommitmentsView />}
-        {user.role === "partner" && view === "payouts" && <PartnerPayoutsView />}
         {user.role === "partner" && view === "updates" && <PartnerUpdatesView />}
 
         {user.role === "investor" && view === "home" && <InvestorHome user={user} onNavigate={changeView} onOpenInvestment={(id) => openLink("investments", id)} onOpenUpdate={(id) => openLink("updates", id)} />}

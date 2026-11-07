@@ -131,6 +131,7 @@ Tables follow PRD Section 8. Each milestone adds its own migration file.
 - **Uploads.** 4 MB per file, because Netlify functions take about 6 MB per request. Going higher needs direct upload to Supabase Storage.
 - **Downloads.** Documents download through a plain link, not a new tab, because Safari blocks new tabs opened after a server call.
 - **Fees.** Dashboard and deal page both count Sent and Paid invoices, without VAT.
+- **Venture partner referrals (migration 009).** Investors gain intro fields (LinkedIn, relationship, Yes/No answers, intro methods, expected support). `startup_referrals` holds partner-submitted startups; statuses Submitted, Under review, Accepted, Rejected, Duplicate. Accepting sets `credit_expires_at` from the partner's `credit_window_months`. Duplicates (website domain, normalised name, founder email) are admin-only. "Create deal draft" inserts a Draft IB deal with `ib_deals.introduced_by_partner_id`, which is a reference only and changes no payout. Partners see derived statuses (`lib/referrals.js`); startup status follows `ib_deals.deal_status` once a deal exists. Routes: `/api/partner/startups`, `/api/admin/startup-referrals`.
 
 ## 6. Pages by role
 

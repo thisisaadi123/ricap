@@ -12,6 +12,7 @@ const { notifyAdmins } = require("../lib/notify.js");
 const v = require("../lib/validate.js");
 const { visibleSql, isVisible } = require("../lib/visibility.js");
 const E = require("../lib/commitments.js");
+const { INVESTOR_VP_STATUS_SQL, readInvestorIntro } = require("../lib/referrals.js");
 
 const router = Router();
 router.use(requireAuth, requireRole("partner"));
@@ -23,6 +24,8 @@ const PARTNER_INVESTOR_SQL = `
          CASE WHEN i.registration_status = 'Duplicate' THEN 'Not accepted' ELSE i.registration_status END AS registration_status,
          CASE WHEN i.registration_status = 'Rejected' THEN i.rejection_reason END AS rejection_reason,
          i.credit_expires_at, i.created_at,
+         i.linkedin_url, i.relationship_type, i.previously_invested, i.personally_interacted, i.informed_about_riv, i.intro_methods, i.expected_support,
+         ${INVESTOR_VP_STATUS_SQL} AS vp_status,
          CASE WHEN i.registration_status = 'Approved' THEN ${KYC_STATUS_SQL} END AS kyc_status,
          pc.name AS primary_contact_name, pc.email AS primary_contact_email
   FROM investors i
@@ -55,6 +58,7 @@ router.post("/investors", asyncRoute(async (req, res) => {
   const inv = readInvestor(body, { partial: false, restricted: false });
   delete inv.notes;
   delete inv.riv_owner_user_id;
+  Object.assign(inv, readInvestorIntro(body, inv));
   const contact = readContact(body.contact || {});
   if (!contact.email) throw httpError(400, "Add the primary contact's email.");
 
