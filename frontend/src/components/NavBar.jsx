@@ -10,6 +10,7 @@ export function navItemsFor(role) {
     { id: "overview", label: "Overview" },
     { id: "partners", label: "Partners" },
     { id: "investors", label: "Investors" },
+    { id: "referrals", label: "Startups" },
     { id: "kyc", label: "KYC" },
     { id: "vehicles", label: "Vehicles" },
     { id: "deals", label: "IB deals" },
@@ -21,9 +22,9 @@ export function navItemsFor(role) {
   if (role === "partner") return [
     { id: "dashboard", label: "Dashboard" },
     { id: "investors", label: "My investors" },
+    { id: "startups", label: "My startups" },
     { id: "opportunities", label: "Opportunities" },
     { id: "commitments", label: "Commitments" },
-    { id: "payouts", label: "Payouts" },
     { id: "updates", label: "Updates" },
   ];
   return [
@@ -53,7 +54,7 @@ export function NavBar({ view, setView, user, onLogout, onOpenLink }) {
           <div style={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
             {items.map((it) => (
               <button key={it.id} onClick={() => setView(it.id)} style={{
-                fontFamily: FONT, fontWeight: 600, fontSize: 13, padding: "8px 8px", borderRadius: 8,
+                fontFamily: FONT, fontWeight: 600, fontSize: 13, padding: items.length > 10 ? "8px 6px" : "8px 8px", borderRadius: 8,
                 border: "none", cursor: "pointer",
                 background: view === it.id ? BRAND.cream : "transparent",
                 color: view === it.id ? BRAND.coral : "#7A756F",

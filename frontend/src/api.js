@@ -116,6 +116,11 @@ export const api = {
   createInvestor: (body) => request("/admin/investors", { method: "POST", body }),
   updateInvestor: (id, body) => request(`/admin/investors/${id}`, { method: "PATCH", body }),
   reviewInvestor: (id, body) => request(`/admin/investors/${id}/review`, { method: "POST", body }),
+  // admin: startup referrals from venture partners (M10)
+  listStartupReferrals: (params = {}) => request(`/admin/startup-referrals${query(params)}`),
+  getStartupReferral: (id) => request(`/admin/startup-referrals/${id}`),
+  reviewStartupReferral: (id, body) => request(`/admin/startup-referrals/${id}/review`, { method: "POST", body }),
+  createDealFromReferral: (id, body) => request(`/admin/startup-referrals/${id}/create-deal`, { method: "POST", body }),
   addContact: (id, body) => request(`/admin/investors/${id}/contacts`, { method: "POST", body }),
   updateContact: (id, contactId, body) => request(`/admin/investors/${id}/contacts/${contactId}`, { method: "PATCH", body }),
   removeContact: (id, contactId) => request(`/admin/investors/${id}/contacts/${contactId}`, { method: "DELETE" }),
@@ -241,6 +246,8 @@ export const api = {
   partnerUpdates: () => request("/partner/updates"),
   partnerInvestors: () => request("/partner/investors"),
   partnerAddInvestor: (body) => request("/partner/investors", { method: "POST", body }),
+  partnerStartups: () => request("/partner/startups"),
+  partnerAddStartup: (body) => request("/partner/startups", { method: "POST", body }),
 
   // investor (M2)
   investorMe: () => request("/investor/me"),

@@ -63,3 +63,23 @@ export const RISK_COLORS = { Low: GREEN, Medium: AMBER, High: RED };
 export const COMMITMENT_STATUS_COLORS = { Active: GREEN, "On hold": AMBER, Dropped: GREY, Rejected: RED, Withdrawn: GREY };
 export const VEHICLE_STATUS_COLORS = { Draft: GREY, Open: GREEN, Closed: GREY };
 export const BANK_CHANGE_COLORS = { Pending: AMBER, Approved: GREEN, Rejected: RED, Cancelled: GREY };
+
+// Venture partner referrals (must match backend/lib/referrals.js and
+// migrations/009_vp_referrals.sql).
+export const YES_NO = ["Yes", "No"];
+export const RELATIONSHIP_TYPES = ["Friend", "Colleague", "Mentor", "Co-investor", "Professional Network", "Other"];
+export const INTRO_METHODS = ["Email", "WhatsApp", "LinkedIn", "In person"];
+export const EXPECTED_SUPPORT = ["Initial introduction", "Follow-up facilitation", "Available as needed"];
+export const STARTUP_STAGES = ["Idea", "Pre-revenue", "Early Revenue", "Scaling"];
+export const STARTUP_SECTORS = ["Retail Tech", "Consumer Tech", "Agri Tech", "Health Tech", "Fin Tech", "Supply Chain & Logistics", "Other"];
+export const FUNDRAISING = ["Yes", "No", "Exploring"];
+export const DEAL_INSTRUMENTS = ["Equity", "SAFE", "Convertible", "Other"];
+export const REFERRAL_STATUSES = ["Submitted", "Under review", "Accepted", "Rejected", "Duplicate"];
+
+// What a venture partner sees (investors and startups they introduced).
+export const VP_INVESTOR_STATUSES = ["Submitted", "Accepted", "In progress", "Invested", "Not accepted"];
+export const VP_STARTUP_STATUSES = ["Submitted", "Under review", "Accepted", "Live", "Closed", "Not accepted"];
+export const VP_STATUS_COLORS = {
+  Submitted: AMBER, "Under review": PURPLE, Accepted: BLUE, "In progress": PURPLE, Invested: GREEN, Live: GREEN, Closed: GREY, "Not accepted": GREY,
+};
+export const REFERRAL_STATUS_COLORS = { Submitted: AMBER, "Under review": PURPLE, Accepted: GREEN, Rejected: RED, Duplicate: GREY };

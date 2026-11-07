@@ -198,6 +198,18 @@ Run M5 first so there are figures to see. After each change, reload and check th
 - [ ] 7.14 Partner lands on **Dashboard**: investors, committed, received, payouts, their commitments, and open vehicles with teasers. They see only their own investors.
 - [ ] 7.15 Investor **Home**: **Actions needed** lists KYC, documents to sign, soft commitments and payments due, and each opens the right page. **My holdings** shows committed, paid and outstanding; Fund shows as soft commitment. With nothing to do, it says so.
 
+## M10 – Venture partner referrals
+
+- [ ] M10.1 Partner → My investors → Introduce an investor. Required: name, category, an investment figure (from or up to), Source, why you're referring, contact name and email, and the consent box. LinkedIn, country and the Yes/No questions are optional. Without the consent box it won't submit.
+- [ ] M10.2 The partner's investor list shows simple statuses: Submitted, Accepted, In progress, Invested, Not accepted. No duplicate information is ever shown.
+- [ ] M10.3 Partner → My startups → Introduce startup. Required: name, website, founder name and email, description, why you're referring, permission box. "acme.com" is accepted as a website.
+- [ ] M10.4 Admin → Startups: the new startup is in To review and admins got an alert. A startup with the same website, name or founder email as another shows "possible duplicate"; the partner can't see that.
+- [ ] M10.5 Review: Mark under review, Accept (partner is credited for their credit window), Reject (reason needed, shown to the partner), Mark as duplicate of (partner just sees "Not accepted").
+- [ ] M10.6 An accepted startup: Create deal draft. Enter instrument, round size and pre-money; a round under USD 500K needs a reason. A draft IB deal appears under IB deals with the startup and partner filled in.
+- [ ] M10.7 Once the deal exists the partner's startup status follows it: Accepted, then Live, then Closed.
+- [ ] M10.8 Partner Dashboard shows investors and startups introduced with a count per status. No dollar amounts anywhere on it, and there is no Payouts tab for partners.
+- [ ] M10.9 Admin Overview "Registrations to review" counts investors and startups together.
+
 ## Bug-fix checks
 
 - [ ] B.1 Withdraw or hold a commitment at Funds due: the investor no longer sees the bank details. Resume it: they come back.

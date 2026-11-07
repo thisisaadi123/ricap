@@ -1,20 +1,30 @@
-// Venture partner dashboard (PRD 6.11): their investors with live status,
-// committed and received amounts, payouts, and what's open to bring people to.
+// Venture partner dashboard: the investors and startups the partner has
+// introduced, each with its status. No dollar values are shown here.
 import React, { useEffect, useState } from "react";
-import { Users } from "lucide-react";
+import { Rocket, Users } from "lucide-react";
 import { api } from "../../api.js";
 import { FONT } from "../../brand.js";
-import { COMMITMENT_STATUS_COLORS, stageLabel } from "../../constants.js";
-import { Card, DataTable, EmptyState, ErrorBanner, Spinner, StatusBadge, cellStyle, usd } from "../../components/ui.jsx";
+import { VP_INVESTOR_STATUSES, VP_STARTUP_STATUSES, VP_STATUS_COLORS } from "../../constants.js";
+import { Card, DataTable, EmptyState, ErrorBanner, Spinner, StatusBadge, cellStyle, dateStr } from "../../components/ui.jsx";
 import { Muted, SectionTitle } from "../../components/forms.jsx";
-import { OpportunityCard } from "./PartnerOpportunityViews.jsx";
 
-function Stat({ label, value, sub, onClick }) {
+// A count with the number in each status underneath.
+function CountCard({ title, total, statuses, items, onClick }) {
   return (
-    <Card onClick={onClick} style={{ padding: 16, cursor: onClick ? "pointer" : "default" }}>
-      <Muted>{label}</Muted>
-      <div style={{ fontFamily: FONT, fontSize: 22, fontWeight: 700, marginTop: 4 }}>{value}</div>
-      {sub && <Muted>{sub}</Muted>}
+    <Card onClick={onClick} style={{ padding: 18, cursor: "pointer" }}>
+      <Muted>{title}</Muted>
+      <div style={{ fontFamily: FONT, fontSize: 28, fontWeight: 700, margin: "4px 0 12px" }}>{total}</div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        {statuses.map((st) => {
+          const n = items.filter((x) => x.vp_status === st).length;
+          return (
+            <span key={st} style={{ display: "inline-flex", gap: 6, alignItems: "center", opacity: n ? 1 : 0.45 }}>
+              <StatusBadge status={st} colors={VP_STATUS_COLORS} />
+              <span style={{ fontFamily: FONT, fontWeight: 700, fontSize: 13 }}>{n}</span>
+            </span>
+          );
+        })}
+      </div>
     </Card>
   );
 }
@@ -23,49 +33,47 @@ export function PartnerDashboardView({ onNavigate }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   useEffect(() => {
-    Promise.all([api.partnerInvestors(), api.partnerCommitments(), api.partnerPayouts(), api.partnerOpportunities()])
-      .then(([i, c, p, o]) => setData({ investors: i.investors, commitments: c.commitments, payouts: p.totals, opportunities: o.opportunities }))
+    Promise.all([api.partnerInvestors(), api.partnerStartups()])
+      .then(([i, s]) => setData({ investors: i.investors, startups: s.startups }))
       .catch((e) => setError(e.message));
   }, []);
   if (!data) return error ? <ErrorBanner text={error} /> : <Spinner />;
-  const { investors, commitments, payouts, opportunities } = data;
-  const live = commitments.filter((c) => ["Active", "On hold"].includes(c.status));
-  const committed = live.reduce((s, c) => s + Number(c.committed_amount || 0), 0);
-  const received = commitments.reduce((s, c) => s + Number(c.received_total || 0), 0);
-  const inReview = investors.filter((i) => i.registration_status === "Submitted").length;
+  const { investors, startups } = data;
 
   return (
     <div>
       <ErrorBanner text={error} />
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(200px, 100%), 1fr))", gap: 14 }}>
-        <Stat label="My investors" value={investors.length} sub={`${inReview} with RIV for review`} onClick={() => onNavigate("investors")} />
-        <Stat label="Committed" value={usd(committed)} sub={`${live.length} live commitment${live.length === 1 ? "" : "s"}`} onClick={() => onNavigate("commitments")} />
-        <Stat label="Received" value={usd(received)} onClick={() => onNavigate("commitments")} />
-        <Stat label="Payouts accruing (estimate)" value={usd(payouts.accruing)} onClick={() => onNavigate("payouts")} />
-        <Stat label="Earned, not yet paid" value={usd(payouts.earned)} onClick={() => onNavigate("payouts")} />
-        <Stat label="Paid" value={usd(payouts.paid)} onClick={() => onNavigate("payouts")} />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(380px, 100%), 1fr))", gap: 14 }}>
+        <CountCard title="Investors introduced" total={investors.length} statuses={VP_INVESTOR_STATUSES} items={investors} onClick={() => onNavigate("investors")} />
+        <CountCard title="Startups introduced" total={startups.length} statuses={VP_STARTUP_STATUSES} items={startups} onClick={() => onNavigate("startups")} />
       </div>
 
-      <SectionTitle>My investors' commitments</SectionTitle>
-      {!commitments.length ? <EmptyState icon={Users} title="No commitments yet" text="When an investor you brought commits to a vehicle or deal, it appears here." /> : (
-        <DataTable columns={["Investor", "Vehicle", "Stage", "Committed", "Received"]}>
-          {commitments.slice(0, 10).map((c) => (
-            <tr key={c.id} onClick={() => onNavigate("commitments")} style={{ cursor: "pointer" }}>
-              <td style={cellStyle}><strong>{c.investor_name}</strong></td>
-              <td style={cellStyle}>{c.vehicle_name}</td>
-              <td style={cellStyle}>{stageLabel(c.flow, c.stage)}{c.status !== "Active" && <div style={{ marginTop: 4 }}><StatusBadge status={c.status} colors={COMMITMENT_STATUS_COLORS} /></div>}</td>
-              <td style={cellStyle}>{c.committed_amount ? usd(c.committed_amount) : <>{usd(c.indicative_amount)}<div><Muted>indicated</Muted></div></>}</td>
-              <td style={cellStyle}>{usd(c.received_total)}</td>
+      <SectionTitle>Investors</SectionTitle>
+      {!investors.length ? <EmptyState icon={Users} title="No investors yet" text="Introduce investors from your network and follow their status here." /> : (
+        <DataTable columns={["Investor", "Category", "Submitted", "Status"]}>
+          {investors.slice(0, 10).map((i) => (
+            <tr key={i.id} onClick={() => onNavigate("investors")} style={{ cursor: "pointer" }}>
+              <td style={cellStyle}><strong>{i.display_name || i.legal_name}</strong></td>
+              <td style={cellStyle}>{i.category}</td>
+              <td style={cellStyle}>{dateStr(i.created_at)}</td>
+              <td style={cellStyle}><StatusBadge status={i.vp_status} colors={VP_STATUS_COLORS} /></td>
             </tr>
           ))}
         </DataTable>
       )}
 
-      <SectionTitle>Open vehicles and live deals</SectionTitle>
-      {!opportunities.length ? <Muted>Nothing open right now.</Muted> : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(340px, 100%), 1fr))", gap: 14 }}>
-          {opportunities.map((o) => <OpportunityCard key={o.id} o={o} setError={setError} />)}
-        </div>
+      <SectionTitle>Startups</SectionTitle>
+      {!startups.length ? <EmptyState icon={Rocket} title="No startups yet" text="Introduce startups from your network and follow their status here." /> : (
+        <DataTable columns={["Startup", "Sector", "Submitted", "Status"]}>
+          {startups.slice(0, 10).map((s) => (
+            <tr key={s.id} onClick={() => onNavigate("startups")} style={{ cursor: "pointer" }}>
+              <td style={cellStyle}><strong>{s.startup_name}</strong></td>
+              <td style={cellStyle}>{s.sector || "—"}</td>
+              <td style={cellStyle}>{dateStr(s.created_at)}</td>
+              <td style={cellStyle}><StatusBadge status={s.vp_status} colors={VP_STATUS_COLORS} /></td>
+            </tr>
+          ))}
+        </DataTable>
       )}
     </div>
   );

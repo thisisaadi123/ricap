@@ -327,6 +327,14 @@ function InvestorDetailModal({ investorId, onClose, onChanged, onOpenKyc }) {
             inv.registration_status === "Rejected" && ["Rejection reason", inv.rejection_reason],
             inv.registration_status === "Duplicate" && ["Duplicate of", `#${inv.duplicate_of_investor_id}${inv.rejection_reason ? ` · ${inv.rejection_reason}` : ""}`],
             ["Ticket", inv.ticket_min || inv.ticket_max ? `${usd(inv.ticket_min)} – ${usd(inv.ticket_max)}` : null],
+            inv.relationship_type && ["Source (relationship)", inv.relationship_type],
+            inv.linkedin_url && ["LinkedIn", <a key="li" href={inv.linkedin_url} target="_blank" rel="noopener noreferrer" style={{ color: BRAND.blue }}>{inv.linkedin_url.replace(/^https?:\/\//, "")}</a>],
+            inv.previously_invested && ["Previously invested in startups", inv.previously_invested],
+            inv.personally_interacted && ["Partner has met them", inv.personally_interacted],
+            inv.informed_about_riv && ["They know about RIV", inv.informed_about_riv],
+            inv.intro_methods?.length > 0 && ["Introduced via", inv.intro_methods.join(", ")],
+            inv.expected_support && ["Partner's support", inv.expected_support],
+            inv.partner_id && ["Introduction consent", inv.data_consent_at ? `Confirmed ${dateStr(inv.data_consent_at)}` : "Not recorded"],
           ]} />
           {!data.restricted && <div style={{ fontSize: 12, color: MUTED, marginTop: 10 }}>Net worth and investment inclination are hidden: they need restricted access.</div>}
           <SectionTitle>Edit</SectionTitle>

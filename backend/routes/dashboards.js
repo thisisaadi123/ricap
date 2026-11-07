@@ -159,7 +159,10 @@ router.get("/home", asyncRoute(async (req, res) => {
     payoutTotals(pool),
     leaderboard(pool),
     pool.query(
-      `SELECT (SELECT count(*)::int FROM investors WHERE registration_status = 'Submitted') AS registrations,
+      `SELECT (SELECT count(*)::int FROM investors WHERE registration_status = 'Submitted')
+                + (SELECT count(*)::int FROM startup_referrals WHERE status IN ('Submitted', 'Under review')) AS registrations,
+              (SELECT count(*)::int FROM investors WHERE registration_status = 'Submitted') AS pending_investors,
+              (SELECT count(*)::int FROM startup_referrals WHERE status IN ('Submitted', 'Under review')) AS pending_startups,
               (SELECT count(*)::int FROM commitments c WHERE c.stage = 'Intent' AND c.status = 'Active') AS waiting_eligibility,
               (SELECT count(*)::int FROM commitments c WHERE c.stage = 'Funds due' AND c.status = 'Active') AS funds_due,
               (SELECT count(*)::int FROM money_movements WHERE reconciled_at IS NULL AND voided_at IS NULL) AS unreconciled`
